@@ -22,19 +22,19 @@ class WalletService {
       final blockchain = await Blockchain.create(
         config: BlockchainConfig.esplora(
           config: EsploraConfig(
-            baseUrl: 'https://blockstream.info/testnet/api',
+            baseUrl: 'https://mempool.space/testnet/api',
             stopGap: 100,
             timeout: 120,
+            
           ),
         ),
       );
 
-      final databaseConfig = DatabaseConfig.memory();
       final wallet = await Wallet.create(
         descriptor: externalDescriptor,
         changeDescriptor: internalDescriptor,
         network: Network.Testnet,
-        databaseConfig: databaseConfig,
+        databaseConfig:DatabaseConfig.memory(),
       );
 
       await wallet.sync(blockchain);
@@ -63,10 +63,8 @@ class WalletService {
         'email': email,
         'bitcoin_address': addressInfo.address.toString(),
         'bitcoin_descriptor': await externalDescriptor.asString(),
-        'mnemonic': mnemonic.asString(), // Use asString() not toString()
-        'balance_sats': balance.total is int
-            ? balance.total
-            : int.parse(balance.total.toString()),
+        'mnemonic': mnemonic.asString(),
+        'balance_sats': balance.total.toInt(),
         'transaction_history':bitcoinTransactionHistory,
       };
 

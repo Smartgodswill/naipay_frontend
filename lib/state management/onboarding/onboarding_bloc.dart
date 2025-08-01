@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:bloc/bloc.dart';
 import 'package:meta/meta.dart';
-import 'package:naipay/model/user.dart';
+import 'package:naipay/model/registerusermodels.dart';
 import 'package:naipay/model/walletmodel.dart';
 import 'package:naipay/services/user_service.dart';
 import 'package:naipay/services/walletservice.dart';
@@ -16,11 +16,41 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
     on<OnVerifySentOtpEvent>(_onVerifyUser);
   }
 
+  String? validatePassword(String password) {
+    final regex = RegExp(
+      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#\$&*~]).{10,}$',
+    );
+
+    if (!regex.hasMatch(password)) {
+      return 'Password must be at least 10 characters long and include:\n• 1 uppercase letter\n• 1 lowercase letter\n• 1 number\n• 1 special character';
+    }
+
+    return null;
+  }
+
   Future<void> _onRegisterUser(
     OnboardingSentOtpEvent event,
     Emitter<OnboardingState> emit,
   ) async {
     emit(OnboardingSentOtploadingState());
+    final passwordError = validatePassword(event.password);
+    if (event.fullname.isEmpty ||
+        event.emailAddress.isEmpty ||
+        event.selectedCountry.isEmpty ||
+        event.password.isEmpty) {
+      emit(OnboardingSentOtpFailureState("Fields can not be empty"));
+      return;
+    }
+
+    if (passwordError != null) {
+      emit(OnboardingSentOtpFailureState(passwordError));
+      return;
+    }
+     if (event.ischecked == false) {
+      emit(OnboardingSentOtpFailureState('you must accept the terms and conditions to continue'));
+      return;
+    }
+
     try {
       final user = User(
         fullname: event.fullname,
@@ -51,25 +81,24 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
       return;
     }
     try {
-      final user = User(email: event.email.trim(), otp: event.otp.trim());
+      final user = User(email: event.email.trim(), otp: event.otp.trim(),password: event.password.trim());
       print("Verifying OTP for user: ${user.email}");
-      print("User OTP: ${user.otp}"); 
+      print("User OTP: ${user.otp}");
 
-        await UserService().verifyOtp(user);
+      await UserService().verifyRegisterOtp(user);
       print("OTP verified");
       final walletData = await WalletService().createBitcoinAndTronWallet(
         event.email.trim(),
       );
       print('Wallet data: $walletData');
 
-      final createWalletUser =  Walletmodel(
+      final createWalletUser = Walletmodel(
         email: event.email,
         bitcoin_address: walletData['bitcoin_address'],
         bitcoin_descriptor: walletData['bitcoin_descriptor'],
         mnemonic: walletData['mnemonic'],
-        balance_sats: int.parse(walletData['balance_sats'] .toString()), 
+        balance_sats: int.parse(walletData['balance_sats'].toString()),
         transaction_history: walletData['transaction_history'],
-       
       );
 
       print("Created wallet user: ${createWalletUser.email}");

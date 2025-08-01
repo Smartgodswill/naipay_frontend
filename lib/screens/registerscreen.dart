@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:naipay/screens/otpverifyscreen.dart';
+import 'package:naipay/screens/loginscreen.dart';
+import 'package:naipay/screens/verifyregisterotp.dart';
 import 'package:naipay/state%20management/onboarding/onboarding_bloc.dart';
 import 'package:naipay/theme/colors.dart';
 import 'package:naipay/utils/utils.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:country_picker/country_picker.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -34,7 +35,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => Otpverifyscreen(
+              builder: (context) => VerifyRegisterOtpScreen(
                 email: _emailController.text.trim(),
                 fullname: _firstNameController.text,
                 password: _passwordController.text,
@@ -195,11 +196,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         'Already have an account?',
                         style: TextStyle(color: kwhitecolor),
                       ),
-                      Text(
-                        ' Sign In',
-                        style: TextStyle(
-                          color: kwhitecolor,
-                          fontWeight: FontWeight.bold,
+                      InkWell(
+                        onTap:(){
+                          Navigator.push(context, MaterialPageRoute(builder: (context){
+                            return   LoginScreen();
+                          }));
+                        },
+                        child: Text(
+                          ' Sign In',
+                          style: TextStyle(
+                            color: kwhitecolor,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -250,8 +258,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           BoxShadow(color: kwhitecolor, blurRadius: 5, spreadRadius: 2),
         ],
         borderRadius: BorderRadius.circular(13),
-        color: kgraycolor,
-      ),
+ color: ksubbackgroundcolor,      ),
       Padding(
         padding: const EdgeInsets.only(left: 10, bottom: 5, top: 2),
         child: TextFormField(
@@ -276,86 +283,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     ),
   );
+
 Widget _buildCountryPicker() => Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: customContainer(
-        55,
-        MediaQuery.of(context).size.width * 0.9,
-        BoxDecoration(
-          boxShadow: [
-            BoxShadow(color: kwhitecolor, blurRadius: 5, spreadRadius: 2),
-          ],
-          borderRadius: BorderRadius.circular(13),
-          color: kgraycolor,
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 10, bottom: 5),
-          child: TextFormField(
-            controller: _countryController,
-            readOnly: true,
-            onTap: () => _showCountryBottomSheet(context),
-            decoration: InputDecoration(
-              suffixIcon: Icon(
-                Icons.arrow_drop_down,
-                color: kmainBackgroundcolor,
-              ),
-              hintText: 'Tap to select country',
-              border: InputBorder.none,
-              hintStyle: TextStyle(
-                color: kmainBackgroundcolor,
-                letterSpacing: 0.2,
+  padding: const EdgeInsets.all(8.0),
+  child: customContainer(
+    55,
+    MediaQuery.of(context).size.width * 0.9,
+    BoxDecoration(
+      boxShadow: [
+        BoxShadow(color: kwhitecolor, blurRadius: 5, spreadRadius: 2),
+      ],
+      borderRadius: BorderRadius.circular(13),
+      color: ksubbackgroundcolor,
+    ),
+    Padding(
+      padding: const EdgeInsets.only(left: 10, bottom: 5),
+      child: TextFormField(
+        controller: _countryController,
+        readOnly: true,
+        onTap: () {
+          showCountryPicker(
+            context: context,
+            showPhoneCode: false, 
+            countryListTheme: CountryListThemeData(
+              bottomSheetHeight: 500, 
+              backgroundColor: kmainBackgroundcolor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20.0),
+                topRight: Radius.circular(20.0),
               ),
             ),
+            onSelect: (Country country) {
+              setState(() {
+                selectedCountry = country.name;
+                _countryController.text = country.name;
+              });
+            },
+          );
+        },
+        decoration: InputDecoration(
+          suffixIcon: Icon(
+            Icons.arrow_drop_down,
+            color: kmainBackgroundcolor,
+          ),
+          hintText: 'Tap to select country',
+          border: InputBorder.none,
+          hintStyle: TextStyle(
+            color: kmainBackgroundcolor,
+            letterSpacing: 0.2,
           ),
         ),
       ),
-    );
-
-  void _showCountryBottomSheet(BuildContext context) {
-  showModalBottomSheet(
-    
-    context: context,
-    shape: RoundedRectangleBorder(
-      
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    backgroundColor: kmainBackgroundcolor,
-    builder: (context) {
-      final countries = [
-        'Nigeria',
-        'Ghana',
-        'Kenya',
-        'Rwanda',
-        'South Africa',
-      ];
+  ),
+);
 
-      return Column(
-        children: [
-          SizedBox(height: 45,),
-          Text('Supported Countries'),
-          SizedBox(
-            height: 300,
-            child: ListView.builder(
-              itemCount: countries.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(countries[index]),
-                  onTap: () {
-                    Navigator.pop(context); // Close the sheet
-                    setState(() {
-                      selectedCountry = countries[index];
-                      _countryController.text = countries[index];
-                    });
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      );
-    },
-  );
-}
 
 
   Future<void> _onNextPressed(BuildContext context) async {
