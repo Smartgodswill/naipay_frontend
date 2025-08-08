@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:naipay/screens/verifyloginotp.dart';
@@ -17,8 +19,20 @@ class _LoginScreenState extends State<LoginScreen> {
   bool obscureText = true;
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  bool isSubmitting = false;
+   final List<String> loginMessages = [
+    "Welcome back,\nNaipay missed you!",
+    "Let's get you\nstarted!",
+    "Ready to conquer\nthe day?",
+    "Good to see you\nagain!",
+    "Let’s make today\nawesome!"
+  ];
+  
   @override
   Widget build(BuildContext context) {
+    // Randomly select one message
+    final random = Random();
+    final randomMessage = loginMessages[random.nextInt(loginMessages.length)];
     final size = MediaQuery.of(context).size;
     return Scaffold(
       appBar: AppBar(
@@ -42,10 +56,12 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SingleChildScrollView(
         child: BlocConsumer<RestorewalletBloc, RestorewalletState>(
           listener: (context, state) {
+             setState(() => isSubmitting = false);
             if (state is RestorewalletSuccessState) {
               customSnackBar('Otp send successfully', context);
                Navigator.push(context, MaterialPageRoute(builder: (context){
-                return  VerifyloginOtpScreen();
+                String email=  emailController.text;
+                return  VerifyloginOtpScreen(email:email,);
               }));
             } else if (state is RestorewalletFailureState) {
               customDialog(context, state.message);
@@ -61,8 +77,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     Padding(
                       padding: const EdgeInsets.only(left: 15),
                       child: Text(
-                        'Welcome Back!',
-                        style: TextStyle(color: kwhitecolor, fontSize: 30),
+                        randomMessage,
+                        style: TextStyle(color: kmainWhitecolor, fontSize: 23),
                       ),
                     ),
                   ],
@@ -70,10 +86,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(left: 15),
+                      padding: const EdgeInsets.only(left: 15,top: 5),
                       child: Text(
-                        ' logIn',
-                        style: TextStyle(color: kwhitecolor, fontSize: 20),
+                        'Please input your credentials to get you In',
+                        style: TextStyle(color: kmainWhitecolor, fontSize: 13),
                       ),
                     ),
                   ],
@@ -87,20 +103,22 @@ class _LoginScreenState extends State<LoginScreen> {
                     BoxDecoration(
                       boxShadow: [
                         BoxShadow(
-                          color: ksubbackgroundcolor,
+                          color: kwhitecolor,
                           blurRadius: 5,
+                          blurStyle: BlurStyle.solid,
                           spreadRadius: 0.9,
                         ),
                       ],
-                      color: ksubbackgroundcolor,
+                      color: kmainBackgroundcolor,
                       borderRadius: BorderRadius.circular(13),
                     ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: TextFormField(
+                        style: TextStyle(color: kmainWhitecolor),
                         controller: emailController,
                         decoration: InputDecoration(
-                          hintStyle: TextStyle(color: kmainBackgroundcolor),
+                          hintStyle: TextStyle(color: kmainWhitecolor),
                           hintText: 'Enter your email',
                           border: InputBorder.none,
                           suffixIcon: Icon(
@@ -120,21 +138,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     BoxDecoration(
                       boxShadow: [
                         BoxShadow(
-                          color: ksubbackgroundcolor,
+                          color: kwhitecolor,
                           blurRadius: 5,
+                          blurStyle: BlurStyle.solid,
                           spreadRadius: 0.9,
                         ),
                       ],
-                      color: ksubbackgroundcolor,
+                      color: kmainBackgroundcolor,
                       borderRadius: BorderRadius.circular(13),
                     ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: TextFormField(
+                        style: TextStyle(color: kmainWhitecolor),
                         controller: passwordController,
                         obscureText: obscureText,
                         decoration: InputDecoration(
-                          hintStyle: TextStyle(color: kmainBackgroundcolor),
+                          hintStyle: TextStyle(color:kmainWhitecolor),
                           hintText: 'Enter your password',
                           border: InputBorder.none,
                           suffixIcon: InkWell(
@@ -147,7 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               obscureText
                                   ? Icons.visibility_off
                                   : Icons.visibility,
-                              color: kmainBackgroundcolor,
+                              color: kmainWhitecolor,
                             ),
                           ),
                         ),
@@ -163,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.only(left: 15, right: 15),
                       child: Text(
                         'Forgotten Password?',
-                        style: TextStyle(color: kwhitecolor, fontSize: 14),
+                        style: TextStyle(color: kmainWhitecolor, fontSize: 14),
                       ),
                     ),
                   ],
@@ -174,8 +194,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   context.read<RestorewalletBloc>().add(RestoreUsersWalletOtpEvent(emailController.text, passwordController.text));
                 },
                  child: customContainer(50, 300, BoxDecoration(
+                   boxShadow: [
+                        BoxShadow(
+                          color: kwhitecolor,
+                          blurRadius: 5,
+                          blurStyle: BlurStyle.solid,
+                          spreadRadius: 0.9,
+                        ),
+                      ],
                   borderRadius: BorderRadius.circular(30),
-                  color: ksubcolor
+                  color: kmainBackgroundcolor
                  ), Center(child: state is RestorewalleLoadingState? SizedBox(
                   height: 20,
                   width: 20,
@@ -183,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     strokeWidth: 2,
                     color: ksubbackgroundcolor,
                   ),
-                ): Text('Login',style: TextStyle(color: kwhitecolor),),)),
+                ): Text('Login',style: TextStyle(color: kmainWhitecolor),),)),
                ),
                 SizedBox(height: 20),
                 Row(
@@ -191,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Text(
                       "Don't have an account?",
-                      style: TextStyle(color: kwhitecolor),
+                      style: TextStyle(color: kmainWhitecolor),
                     ),
                     InkWell(
                       onTap: () {

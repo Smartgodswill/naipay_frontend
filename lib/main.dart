@@ -1,12 +1,15 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:naipay/screens/registerscreen.dart';
 import 'package:naipay/state%20management/fetchdata/bloc/fetchdata_bloc.dart';
 import 'package:naipay/state%20management/onboarding/onboarding_bloc.dart';
 import 'package:naipay/state%20management/restorewallet/bloc/restorewallet_bloc.dart';
+import 'package:naipay/theme/colors.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+   WidgetsFlutterBinding.ensureInitialized();
+
   runApp(
     MultiBlocProvider(
       providers: [
@@ -14,13 +17,21 @@ void main() async {
         BlocProvider(create: (context) => FetchdataBloc()),
         BlocProvider(create: (context) => RestorewalletBloc()),
       ],
-      child: const MyApp(),
-    ),
+      child: const MyApp()),
+  
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -28,9 +39,9 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: kwhitecolor),
       ),
-      home: RegisterScreen(),
+      home: RegisterScreen()
     );
   }
 }

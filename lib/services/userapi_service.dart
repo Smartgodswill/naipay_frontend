@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:naipay/model/walletmodel.dart';
 
 class UserService {
-  static const String baseurl = 'http://10.193.211.102:2000';
+  static const String baseurl = 'http://10.105.34.155:2000';
 
   Future<void> signup(User user) async {
     final response = await http.post(
@@ -182,6 +182,7 @@ Future<Map<String, dynamic>> verifyLogInOtp(LoginUserModels user) async {
     print("Status code: ${response.statusCode}");
     print("Response body: ${response.body}");
     print("OTP sent to backend: ${user.otp}");
+  
 
     if (response.statusCode != 200) {
       try {

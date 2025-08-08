@@ -1,7 +1,10 @@
 import 'package:bloc/bloc.dart';
 import 'package:meta/meta.dart';
+import 'package:naipay/model/getusersmodels.dart';
 import 'package:naipay/model/loginusermodels.dart';
-import 'package:naipay/services/user_service.dart';
+import 'package:naipay/services/restorewallet_service.dart';
+import 'package:naipay/services/userapi_service.dart';
+import 'package:naipay/services/walletservice.dart';
 
 part 'restorewallet_event.dart';
 part 'restorewallet_state.dart';
@@ -9,7 +12,7 @@ part 'restorewallet_state.dart';
 class RestorewalletBloc extends Bloc<RestorewalletEvent, RestorewalletState> {
   RestorewalletBloc() : super(RestorewalletInitial()) {
     on<RestoreUsersWalletOtpEvent>(_restoreOtpSentWallet);
-    on<RestoreUsersWalletVerifyOtpEvent>(_restorVerifedewallet);
+    on<RestoreUsersWalletVerifyOtpEvent>(_restorVerifedwallet);
   }
   String? validatePassword(String password) {
     final regex = RegExp(
@@ -46,15 +49,22 @@ class RestorewalletBloc extends Bloc<RestorewalletEvent, RestorewalletState> {
       
     }
   }
-  Future<void> _restorVerifedewallet(RestoreUsersWalletVerifyOtpEvent event ,Emitter<RestorewalletState> emit)async{
+  Future<void> _restorVerifedwallet(RestoreUsersWalletVerifyOtpEvent event ,Emitter<RestorewalletState> emit)async{
 
     emit(RestorewalleLoadingState());
     try {
+      WalletService().resetWallet();
       final result=  await UserService().verifyLogInOtp(LoginUserModels(email: event.email,otp: event.otp));
-      emit(RestoreVerifiedwalletSuccessState(result['mnemonic']));
+      final String mnemonics = result['mnemonic'] ?? '';
+      print(mnemonics);
+      final userInfo = await UserService().getUsersInfo(Getuser(email: event.email));
+      print(userInfo['email']);
+      final walletdata=   await RestorewalletService().restoreWallet(mnemonics,userInfo['bitcoin_descriptor'],userInfo['email'],);
+      print('Bitcoin data is:$walletdata');
+      emit(RestoreVerifiedwalletSuccessState(walletdata,userInfo));
     } catch (e) {
       print(e);
-      emit(RestorewalletFailureState('$e'));
+      emit(RestorewalletFailureState('RestorewalletFailureState on bitcoinpalava$e'));
       
     }
   }
