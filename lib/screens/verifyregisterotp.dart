@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:naipay/nav/navigate.dart';
 import 'package:naipay/state%20management/onboarding/onboarding_bloc.dart';
+import 'package:naipay/subscreens/homepage.dart';
 import 'package:naipay/theme/colors.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:naipay/utils/utils.dart';
@@ -67,7 +67,7 @@ class _VerifyRegisterOtpScreenState extends State<VerifyRegisterOtpScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) {
-                  return NavigateScreen(email: widget.email,);
+                  return Homepage(email: widget.email);
                 },
               ),
             );

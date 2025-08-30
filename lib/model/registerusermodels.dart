@@ -9,6 +9,7 @@ class User {
   String? password;
   String? referred_by;
   String? otp;
+  String? bitcoin_descriptor;
   User({
     this.fullname,
     this.email,
@@ -16,9 +17,8 @@ class User {
     this.password,
     this.referred_by,
     this.otp,
+    this.bitcoin_descriptor,
   });
- 
-
 
   User copyWith({
     String? fullname,
@@ -27,6 +27,7 @@ class User {
     String? password,
     String? referred_by,
     String? otp,
+    String? bitcoin_descriptor,
   }) {
     return User(
       fullname: fullname ?? this.fullname,
@@ -35,6 +36,7 @@ class User {
       password: password ?? this.password,
       referred_by: referred_by ?? this.referred_by,
       otp: otp ?? this.otp,
+      bitcoin_descriptor: bitcoin_descriptor ?? this.bitcoin_descriptor,
     );
   }
 
@@ -46,6 +48,7 @@ class User {
       'password': password,
       'referred_by': referred_by,
       'otp': otp,
+      'bitcoin_descriptor': bitcoin_descriptor,
     };
   }
 
@@ -57,6 +60,7 @@ class User {
       password: map['password'] != null ? map['password'] as String : null,
       referred_by: map['referred_by'] != null ? map['referred_by'] as String : null,
       otp: map['otp'] != null ? map['otp'] as String : null,
+      bitcoin_descriptor: map['bitcoin_descriptor'] != null ? map['bitcoin_descriptor'] as String : null,
     );
   }
 
@@ -66,7 +70,7 @@ class User {
 
   @override
   String toString() {
-    return 'User(fullname: $fullname, email: $email, country: $country, password: $password, referred_by: $referred_by, otp: $otp)';
+    return 'User(fullname: $fullname, email: $email, country: $country, password: $password, referred_by: $referred_by, otp: $otp, bitcoin_descriptor: $bitcoin_descriptor)';
   }
 
   @override
@@ -79,7 +83,8 @@ class User {
       other.country == country &&
       other.password == password &&
       other.referred_by == referred_by &&
-      other.otp == otp;
+      other.otp == otp &&
+      other.bitcoin_descriptor == bitcoin_descriptor;
   }
 
   @override
@@ -89,6 +94,7 @@ class User {
       country.hashCode ^
       password.hashCode ^
       referred_by.hashCode ^
-      otp.hashCode;
+      otp.hashCode ^
+      bitcoin_descriptor.hashCode;
   }
 }

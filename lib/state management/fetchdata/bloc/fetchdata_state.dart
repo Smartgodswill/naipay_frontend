@@ -10,16 +10,14 @@ class FetchUsersLoadingState extends FetchdataState {}
 class FetchUsersSuccessState extends FetchdataState {
   final Map<String, dynamic> walletdata;
   final Map<String, dynamic> usersInfo;
-  final Map<String, double> prices;
-  final List<FlSpot> chartData;
-  final bool isUpward;
+  final List<dynamic> trc20Transactions;
+  
   FetchUsersSuccessState(
      {
     required this.walletdata,
     required this.usersInfo,
-    required this.prices,
-    required this.chartData,
-     required this.isUpward,
+    required this.trc20Transactions
+    
   });
 }
 

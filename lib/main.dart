@@ -4,7 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:naipay/screens/registerscreen.dart';
 import 'package:naipay/state%20management/fetchdata/bloc/fetchdata_bloc.dart';
 import 'package:naipay/state%20management/onboarding/onboarding_bloc.dart';
+import 'package:naipay/state%20management/pricesbloc/prices_bloc.dart';
 import 'package:naipay/state%20management/restorewallet/bloc/restorewallet_bloc.dart';
+import 'package:naipay/state%20management/sendfunds/bloc/sendfunds_bloc.dart';
+import 'package:naipay/state%20management/sendtransactionpin/bloc/sendtransactionpin_bloc.dart';
 import 'package:naipay/theme/colors.dart';
 
 void main() async {
@@ -16,6 +19,9 @@ void main() async {
         BlocProvider(create: (context) => OnboardingBloc()),
         BlocProvider(create: (context) => FetchdataBloc()),
         BlocProvider(create: (context) => RestorewalletBloc()),
+        BlocProvider(create: (context) => PricesBloc()),
+        BlocProvider(create: (context) => SendfundsBloc()),
+        BlocProvider(create: (context) => SendtransactionpinBloc()),
       ],
       child: const MyApp()),
   

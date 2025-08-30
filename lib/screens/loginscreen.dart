@@ -190,7 +190,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 SizedBox(height: 80),
                InkWell(
-                onTap: state is RestorewalleLoadingState?null:(){
+                onTap: (){
                   context.read<RestorewalletBloc>().add(RestoreUsersWalletOtpEvent(emailController.text, passwordController.text));
                 },
                  child: customContainer(50, 300, BoxDecoration(

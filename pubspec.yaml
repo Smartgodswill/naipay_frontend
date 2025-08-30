@@ -51,7 +51,9 @@ dependencies:
   qr_flutter: ^4.1.0
   crypto: ^3.0.6
   share_plus: ^11.0.0
-  
+  qr_code_scanner_plus: ^2.0.0  
+  encrypt: ^5.0.3
+  web3dart: ^2.7.3
 
   
 

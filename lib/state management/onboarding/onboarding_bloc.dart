@@ -6,7 +6,7 @@ import 'package:naipay/model/registerusermodels.dart';
 import 'package:naipay/model/walletmodel.dart';
 import 'package:naipay/services/userapi_service.dart';
 import 'package:naipay/services/walletservice.dart';
-
+import 'package:bdk_flutter/bdk_flutter.dart';
 part 'onboarding_event.dart';
 part 'onboarding_state.dart';
 
@@ -89,11 +89,10 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
       print("OTP verified");
       final walletData = await WalletService().createBitcoinWallet(
         event.email.trim(),
-        
-        
+        Network.Testnet
         
       );
-      print('Wallet data: $walletData');
+      print('Wallet data hhh: $walletData');
 
       final createWalletUser = Walletmodel(
         email: event.email,

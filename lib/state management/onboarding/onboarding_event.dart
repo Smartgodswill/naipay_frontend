@@ -25,11 +25,13 @@ class OnVerifySentOtpEvent extends OnboardingEvent {
   final String email;
   final String otp;
   final String password;
+  final String? bitcoin_descriptor;
 
-  OnVerifySentOtpEvent({
+  OnVerifySentOtpEvent( {
     required this.email,
     required this.otp,
     required this.password,
+    this.bitcoin_descriptor,
   });
 }
 

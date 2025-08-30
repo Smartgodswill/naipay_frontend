@@ -8,7 +8,7 @@ import 'package:pin_code_fields/pin_code_fields.dart';
 
 class VerifyloginOtpScreen extends StatefulWidget {
   final String email;
-  const VerifyloginOtpScreen({super.key, required this.email,});
+  const VerifyloginOtpScreen({super.key, required this.email});
 
   @override
   State<VerifyloginOtpScreen> createState() => _VerifyloginOtpScreenState();
@@ -23,53 +23,23 @@ class _VerifyloginOtpScreenState extends State<VerifyloginOtpScreen> {
       body: SingleChildScrollView(
         child: BlocConsumer<RestorewalletBloc, RestorewalletState>(
           listener: (context, state) {
-           if(state is RestoreVerifiedwalletSuccessState){
-             print('On HomePage NAviGated DATA:${state.mnemonic},${state.userInfo},${widget.email}');
-            Navigator.push(context, MaterialPageRoute(builder: (context){
-              return  Homepage(wallets: state.mnemonic,userInfo:  state .userInfo,email: widget.email,);
-            }));
-           
-           }else if (state is RestorewalleLoadingState) {
-            showDialog(
-              barrierDismissible: false,
-              context: context,
-              builder: (context) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      customContainer(
-                        250,
-                        250,
-                        BoxDecoration(borderRadius: BorderRadius.circular(20)),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Center(
-                              child: Column(
-                                children: [
-                                  customContainer(50, 50, 
-                                  BoxDecoration(
-                                    color: ksubcolor,
-                                    borderRadius: BorderRadius.circular(29)
-                                  ), CircularProgressIndicator()),
-                                  Text('verifying OTP\nplease wait...',
-                                  style: TextStyle(
-                                    color: kwhitecolor,
-                                    fontSize: 25
-                                  ),),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          }
+            if (state is RestoreVerifiedwalletSuccessState) {
+              print(
+                'On HomePage NAviGated DATA:${state.mnemonic},${state.userInfo},${widget.email}',
+              );
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) {
+                    return Homepage(
+                      wallets: state.mnemonic,
+                      userInfo: state.userInfo,
+                      email: widget.email,
+                    );
+                  },
+                ),
+              );
+            }
           },
           builder: (context, state) {
             return Column(
@@ -88,8 +58,7 @@ class _VerifyloginOtpScreenState extends State<VerifyloginOtpScreen> {
                     ),
                   ],
                 ),
-                
-                
+
                 SizedBox(height: 30),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -99,7 +68,7 @@ class _VerifyloginOtpScreenState extends State<VerifyloginOtpScreen> {
                       child: Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: Text(
-                          'An OTP to login into your account has been send to your email please input them here to confirm it actually you. ',
+                          "An OTP to login into your account has been send to your email please input them here to confirm it's actually you.",
                           style: TextStyle(
                             color: kmainWhitecolor,
                             fontSize: 15,
@@ -135,11 +104,62 @@ class _VerifyloginOtpScreenState extends State<VerifyloginOtpScreen> {
                     ),
                     animationDuration: const Duration(milliseconds: 300),
                     enableActiveFill: true,
-                    onCompleted: (value) {
-                      context.read<RestorewalletBloc>().add(RestoreUsersWalletVerifyOtpEvent(widget.email,otpController.text));
-                    },
                   ),
                 ),
+               customButtonContainer(
+  40,
+  300,
+  BoxDecoration(
+    borderRadius: BorderRadius.circular(20),
+    color: kmainBackgroundcolor,
+    boxShadow: [
+      BoxShadow(
+        color: kwhitecolor,
+        blurRadius: 0.5,
+        spreadRadius: 0.8,
+        blurStyle: BlurStyle.solid,
+      ),
+    ],
+  ),
+  Center(
+    child: state is RestorewalleLoadingState
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                state.message,
+                style:  TextStyle(color: kmainWhitecolor),
+              ),
+              const SizedBox(width: 8),
+             SizedBox(
+                height: 16,
+                width: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(kmainWhitecolor),
+                ),
+              ),
+            ],
+          )
+        :  Text(
+            'Verify',
+            style: TextStyle(color: kmainWhitecolor),
+          ),
+  ),
+  (state is RestorewalleLoadingState)
+      ? null
+      : () {
+          if (state is! RestorewalleLoadingState) {
+            context.read<RestorewalletBloc>().add(
+                  RestoreUsersWalletVerifyOtpEvent(
+                    widget.email,
+                    otpController.text.trim(),
+                  ),
+                );
+          }
+        },
+),
+
                 Padding(
                   padding: const EdgeInsets.only(left: 25, top: 40),
                   child: Row(

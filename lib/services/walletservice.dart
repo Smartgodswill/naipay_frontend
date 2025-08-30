@@ -1,195 +1,235 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:bdk_flutter/bdk_flutter.dart';
-import 'package:crypto/crypto.dart';
-import 'package:path_provider/path_provider.dart';
 
 class WalletService {
-  static Wallet? _walletInstance;
-  static Descriptor? _externalDescriptor;
-  static Blockchain? _blockchain;
-  static Mnemonic? _mnemonic;
+  // 🔹 Singleton Electrum instance
+  static Blockchain? _electrumBlockchain;
 
-  /// Creates a new wallet or returns existing wallet data.
-  Future<Map<String, dynamic>> createBitcoinWallet(String? email, {Network network = Network.Testnet}) async {
-    try {
-      if (_walletInstance != null && _externalDescriptor != null && _blockchain != null) {
-        return await _getWalletData(email);
-      }
+  // 🔹 Initialize Electrum blockchain client
+  Future<void> initBlockchain(Network network) async {
+    if (_electrumBlockchain != null) return;
 
-      // Generate new mnemonic
-      _mnemonic = await Mnemonic.create(WordCount.Words12);
-      print(_mnemonic);
+    final electrumUrl = network == Network.Testnet
+        ? "ssl://electrum.blockstream.info:60002"
+        : "ssl://electrum.blockstream.info:50002";
 
-      final descriptorSecretKey = await DescriptorSecretKey.create(
-        network: network,
-        mnemonic: _mnemonic!,
-      );
-
-      _externalDescriptor = await Descriptor.newBip84(
-        secretKey: descriptorSecretKey,
-        network: network,
-        keychain: KeychainKind.External,
-      );
-
-      final internalDescriptor = await Descriptor.newBip84(
-        secretKey: descriptorSecretKey,
-        network: network,
-        keychain: KeychainKind.Internal,
-      );
-
-      // Initialize blockchain
-      _blockchain = await Blockchain.create(
-        config: BlockchainConfig.esplora(
-          config: EsploraConfig(
-            baseUrl: 'https://mempool.space/testnet/api',
-            stopGap: 10,
-            timeout: 120,
-          ),
+    _electrumBlockchain = await Blockchain.create(
+      config: BlockchainConfig.electrum(
+        config: ElectrumConfig(
+          url: electrumUrl,
+          socks5: null,
+          retry: 5,
+          timeout: 10, stopGap: 20, validateDomain: true,
         ),
-      );
-
-      // ⚠️ Unique DB name based on descriptor hash
-      final descriptorString = await _externalDescriptor!.asString();
-      final descriptorHash = sha256.convert(utf8.encode(descriptorString)).toString();
-      final dir = await getApplicationDocumentsDirectory();
-      final dbPath = '${dir.path}/wallet-$descriptorHash.db';
-
-      print("📁 DB Path: $dbPath");
-      print("🧾 Descriptor: $descriptorString");
-      print("🔐 Mnemonic: ${_mnemonic!.asString()}");
-
-
-      // Create wallet using SQLite
-      _walletInstance = await Wallet.create(
-        descriptor: _externalDescriptor!,
-        changeDescriptor: internalDescriptor,
-        network: network,
-        databaseConfig: DatabaseConfig.sqlite(
-          config: SqliteDbConfiguration(path: dbPath),
-        ),
-      );
-
-      await _walletInstance!.sync(_blockchain!);
-
-      return await _getWalletData(email);
-    } catch (e, stackTrace) {
-      print('❌ Error in createBitcoinWallet: $e');
-      print('📌 StackTrace: $stackTrace');
-      throw Exception('Failed to create wallet: $e');
-    }
-  }
-
-  /// Retrieve wallet data
-  Future<Map<String, dynamic>> _getWalletData(String? email) async {
-    if (_walletInstance == null || _externalDescriptor == null) {
-      throw Exception('Wallet not initialized');
-    }
-
-    try {
-      await _walletInstance!.sync(_blockchain!);
-    } catch (e) {
-      print('⚠️ Sync failed: $e');
-    }
-
-    final addressInfo = await _walletInstance!.getAddress(
-      addressIndex: AddressIndex.lastUnused(),
+      ),
     );
-
-    final balance = await _walletInstance!.getBalance();
-
-    final transactions = await _walletInstance!.listTransactions(true);
-
-    final bitcoinTransactionHistory = transactions.map((tx) {
-      return {
-        'txid': tx.txid,
-        'type': 'bitcoin',
-        'received': tx.received,
-        'sent': tx.sent,
-        'fee': tx.fee ?? 0,
-        'timestamp': tx.confirmationTime?.timestamp ?? 0,
-        'confirmed': tx.confirmationTime != null,
-      };
-    }).toList();
-
-    return {
-      'email': email,
-      'bitcoin_address': addressInfo.address.toString(),
-      'bitcoin_descriptor': await _externalDescriptor!.asString(),
-      'mnemonic': _mnemonic?.asString(),
-      'balance_sats': balance.total.toInt(),
-      'transaction_history': bitcoinTransactionHistory,
-    };
   }
 
-  void resetWallet() {
-    _walletInstance = null;
-    _externalDescriptor = null;
-    _blockchain = null;
-    _mnemonic = null;
-    print('🔄 Wallet instance reset successfully');
-  }
+  // 🔹 Create a new Bitcoin wallet
+  Future<Map<String, dynamic>> createBitcoinWallet(
+      String email, Network network) async {
+    await initBlockchain(network);
 
-
-    Future<String> getLocalDbPath(String descriptor) async {
-  final hash = sha256.convert(utf8.encode(descriptor)).toString();
-  final dir = await getApplicationDocumentsDirectory();
-  return '${dir.path}/wallet-$hash.db';
-}
-  Future<Map<String, dynamic>> loadExistingWallet(String? email,String db_path, String mnemonic, {Network network = Network.Testnet}) async {
-  try {
-    // Regenerate mnemonic and descriptor
-    print('🧠 Mnemonic passed in: "$mnemonic"');
-    final _mnemonic = await Mnemonic.fromString(mnemonic);
-    print('🧠 Mnemonic Recived in: "$_mnemonic"');
-    print(db_path);
-    final descriptorSecretKey = await DescriptorSecretKey.create(
+    final mnemonics = await Mnemonic.create(WordCount.Words12);
+    final secretKey = await DescriptorSecretKey.create(
       network: network,
-      mnemonic: _mnemonic,
+      mnemonic: mnemonics,
     );
 
-    _externalDescriptor = await Descriptor.newBip84(
-      secretKey: descriptorSecretKey,
+    final externalDescriptor = await Descriptor.newBip84(
+      secretKey: secretKey,
       network: network,
       keychain: KeychainKind.External,
     );
-
     final internalDescriptor = await Descriptor.newBip84(
-      secretKey: descriptorSecretKey,
+      secretKey: secretKey,
       network: network,
       keychain: KeychainKind.Internal,
     );
 
-    
-
-    _blockchain ??= await Blockchain.create(
-      config: BlockchainConfig.esplora(
-        config: EsploraConfig(
-          baseUrl: 'https://mempool.space/testnet/api',
-          stopGap: 10,
-          timeout: 120,
-        ),
-      ),
-    );
-    final db_pathload = await getLocalDbPath(db_path);
-
-    _walletInstance = await Wallet.create(
-      descriptor: _externalDescriptor!,
+    final wallet = await Wallet.create(
+      descriptor: externalDescriptor,
       changeDescriptor: internalDescriptor,
       network: network,
-      databaseConfig: DatabaseConfig.sqlite(
-        config: SqliteDbConfiguration(path: db_pathload),
-      ),
+      databaseConfig: DatabaseConfig.memory(),
     );
 
-    await _walletInstance!.sync(_blockchain!);
+    await wallet.sync(_electrumBlockchain!);
 
-    return await _getWalletData(email);
-  } catch (e, stack) {
-    print('❌ Failed to load existing wallet: $e');
-    print('📌 Stack: $stack');
-    throw Exception('Failed to load wallet for $email');
+    final balance = await wallet.getBalance();
+    final address =
+        await wallet.getAddress(addressIndex: AddressIndex.lastUnused());
+    final txHistory = await wallet.listTransactions(true);
+
+    return {
+      'mnemonic': mnemonics.toString(),
+      'bitcoin_descriptor': await externalDescriptor.asString(),
+      'balance_sats': balance.confirmed,
+      'bitcoin_address': address.address,
+      'transaction_history': txHistory,
+    };
   }
+
+  // 🔹 Load existing wallet
+  Future<Map<String, dynamic>> loadExistingWallet(
+      String email, String mnemonicString, Network network) async {
+    await initBlockchain(network);
+
+    final mnemonic = await Mnemonic.fromString(mnemonicString);
+    final secretKey =
+        await DescriptorSecretKey.create(network: network, mnemonic: mnemonic);
+
+    final externalDescriptor = await Descriptor.newBip84(
+      secretKey: secretKey,
+      network: network,
+      keychain: KeychainKind.External,
+    );
+    final internalDescriptor = await Descriptor.newBip84(
+      secretKey: secretKey,
+      network: network,
+      keychain: KeychainKind.Internal,
+    );
+
+    final wallet = await Wallet.create(
+      descriptor: externalDescriptor,
+      changeDescriptor: internalDescriptor,
+      network: network,
+      databaseConfig: DatabaseConfig.memory(),
+    );
+
+    await wallet.sync(_electrumBlockchain!);
+
+    final balance = await wallet.getBalance();
+    final address =
+        await wallet.getAddress(addressIndex: AddressIndex.lastUnused());
+    final txHistory = await wallet.listTransactions(true);
+
+    return {
+      'mnemonic': mnemonicString,
+      'balance_sats': balance.confirmed,
+      'bitcoin_address': address.address,
+      'transaction_history': txHistory,
+    };
+  }
+
+  // 🔹 Preview Transaction
+ Future<Map<String, dynamic>> previewTransaction({
+  required String userMnemonic,
+  required String recipientAddress,
+  required int amountInSats,
+  Network network = Network.Testnet,
+  double? feeRate,
+}) async {
+  await initBlockchain(network);
+
+  if (amountInSats < 546) {
+    throw Exception("Amount below dust limit (546 sats).");
+  }
+
+  // 🔹 Validate BTC address
+  try {
+    final address = await Address.create(address: recipientAddress);
+  } catch (e) {
+    throw Exception("Invalid Bitcoin address.");
+  }
+
+  final mnemonic = await Mnemonic.fromString(userMnemonic);
+  final secretKey =
+      await DescriptorSecretKey.create(network: network, mnemonic: mnemonic);
+
+  final externalDescriptor = await Descriptor.newBip84(
+    secretKey: secretKey,
+    network: network,
+    keychain: KeychainKind.External,
+  );
+  final internalDescriptor = await Descriptor.newBip84(
+    secretKey: secretKey,
+    network: network,
+    keychain: KeychainKind.Internal,
+  );
+
+  final wallet = await Wallet.create(
+    descriptor: externalDescriptor,
+    changeDescriptor: internalDescriptor,
+    network: network,
+    databaseConfig: DatabaseConfig.memory(),
+  );
+
+  await wallet.sync(_electrumBlockchain!);
+
+  final utxos = await wallet.listUnspent();
+  if (utxos.isEmpty) {
+    throw Exception('Wallet has no spendable UTXOs.');
+  }
+
+  final balance = await wallet.getBalance();
+  if (balance.total < amountInSats) {
+    throw Exception(
+      "Insufficient funds: Available ${balance.total}, required $amountInSats",
+    );
+  }
+
+  // Address already validated above
+  final address = await Address.create(address: recipientAddress);
+  final script = await address.scriptPubKey();
+  final finalFeeRate = feeRate ?? await _fetchRecommendedFeeRate();
+
+  final txBuilder = TxBuilder()
+    ..addRecipient(script, amountInSats)
+    ..feeRate(finalFeeRate);
+
+  final txBuilderResult = await txBuilder.finish(wallet);
+  final psbt = txBuilderResult.psbt;
+  final feeAmount = await psbt.feeAmount();
+
+  return {
+    'psbt': psbt,
+    'wallet': wallet,
+    'blockchain': _electrumBlockchain,
+    'fee': feeAmount?.toInt() ?? 0,
+    'amount': amountInSats,
+    'recipientAddress': recipientAddress,
+  };
+}
+
+
+  // 🔹 Confirm Transaction
+  Future<Map<String, dynamic>> confirmTransaction({
+    required PartiallySignedTransaction psbt,
+    required Wallet wallet,
+    required Blockchain blockchain,
+  }) async {
+    final signedPsbt = await wallet.sign(psbt: psbt);
+    final signedTx = await signedPsbt.extractTx();
+    final txid = await signedTx.txid();
+    final feeAmount = await signedPsbt.feeAmount();
+
+    await blockchain.broadcast(signedTx);
+
+    return {
+      'txid': txid,
+      'bitcoin_transaction_fee': feeAmount?.toInt() ?? 0,
+    };
+  }
+
+ 
+Future<double> _fetchRecommendedFeeRate({int targetBlocks = 25}) async {
+  try {
+    // Ask Electrum for fee rate estimate
+    final feeRate = await _electrumBlockchain!.estimateFee(targetBlocks);
+
+    // Convert to sats/vbyte (make sure it's called as a function)
+    final rate = feeRate.asSatPerVb();
+
+    // Ensure the value is valid and not zero/negative
+    if (rate > 0) {
+      return rate;
+    }
+  } catch (e) {
+    print("⚠️ Failed to fetch fee rate: $e");
+  }
+
+  // Fallback: safe low fee to avoid failures
+  return 2.0; // sats/vbyte
 }
 
 }

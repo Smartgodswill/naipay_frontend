@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:naipay/model/walletmodel.dart';
 
 class UserService {
-  static const String baseurl = 'http://10.105.34.155:2000';
+  static const String baseurl = 'http://10.193.255.174:2000';
 
   Future<void> signup(User user) async {
     final response = await http.post(
@@ -83,7 +83,7 @@ class UserService {
   }
 
   Future<Map<String, dynamic>> getUsersInfo(Getuser user) async {
-    final requestBody = jsonEncode({'email': user.email!.toLowerCase()});
+    final requestBody = jsonEncode({'email': user.email?.toLowerCase()});
 
     print('Sending JSON: $requestBody');
 
@@ -105,34 +105,38 @@ class UserService {
     return jsonDecode(response.body);
   }
 
-  Future<Map<String, double>> fetchCryptoPrices() async {
-    final url = Uri.parse(
-      'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,tether&vs_currencies=usd',
-    );
 
-    try {
-      final response = await http.get(url);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final btcRaw = data['bitcoin']?['usd'];
-        final usdtRaw = data['tether']?['usd'];
+Future<Map<String, Map<String, dynamic>>> fetchCryptoPriceAndData() async {
+  final url = Uri.parse(
+    'https://api.coingecko.com/api/v3/coins/markets'
+    '?vs_currency=usd&ids=bitcoin,tether',
+  );
 
-        double btcPrice = (btcRaw is num) ? btcRaw.toDouble() : 0.0;
-        double usdtPrice = (usdtRaw is num) ? usdtRaw.toDouble() : 0.0;
-        double satPrice = btcPrice / 100000000;
+  final response = await http.get(url);
+  if (response.statusCode == 200) {
+    final List<dynamic> data = jsonDecode(response.body);
 
-        return {'BTC': btcPrice, 'SAT': satPrice, 'USDT': usdtPrice};
-      } else {
-        print(' HTTP Error: ${response.statusCode}');
-        print(' Response Body: ${response.body}');
-        throw Exception('Failed to fetch prices from CoinGecko');
-      }
-    } catch (e) {
-      print(' Exception during HTTP call: $e');
-      throw Exception('Unknown error occurred');
+    Map<String, Map<String, dynamic>> result = {};
+    for (var coin in data) {
+      final symbol = coin['symbol'].toString().toUpperCase();
+      final price = (coin['current_price'] as num).toDouble();
+      final satPrice = symbol == 'BTC' ? price / 100000000 : null;
+
+      result[symbol] = {
+        'price': price,
+        if (satPrice != null) 'sat': satPrice,
+        'change_24h': coin['price_change_percentage_24h'],
+        'rank': coin['market_cap_rank'],
+      };
     }
+
+    return result;
+  } else {
+    throw Exception('Failed to fetch data');
   }
+}
+
 
   Future<List<FlSpot>> fetchBitcoinChartData() async {
   final response = await http.get(Uri.parse(
@@ -198,6 +202,108 @@ Future<Map<String, dynamic>> verifyLogInOtp(LoginUserModels user) async {
       return jsonDecode(response.body);
    
   }
+
+
+Future<List<dynamic>> fetchTRC20TransactionHistory(String address) async {
+  try {
+    final url = Uri.parse("$baseurl/auth/usdt-transactions-history");
+
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "address": address,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      print(data);
+      if (data['success'] == true && data['data'] != null) {
+        return data['data'];  
+      } else {
+        return []; // no transactions
+      }
+    } else {
+      throw Exception("Server error: ${response.statusCode}");
+    }
+  } catch (e) {
+    throw Exception("Error fetching TRC20 history: $e");
+  }
+}
+  Future<double> fetchUsdtFee({
+  required String email,
+  required String toAddress,
+  required double amount,
+}) async {
+  final response = await http.post(
+    Uri.parse('$baseurl/auth/display-estimatedFee'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'email': email,
+      'toAddress': toAddress,
+      'amount': amount.toString(),
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    if (data['success'] == true) {
+      return double.parse(data['summary']['feeUSDT']);
+    } else {
+      throw Exception(data['error'] ?? 'Failed to fetch fee');
+    }
+  } else {
+    throw Exception('Server error: ${response.statusCode}');
+  }
+}
+
+
+ Future<void> sendPinToBackend(String email, String pin) async {
+  final url = Uri.parse("$baseurl/auth/set-transaction-pin"); 
+  try {
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "email": email,
+        "pin": pin,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      print("✅ PIN set successfully: $data");
+    } else {
+      print("❌ Error: ${response.body}");
+    }
+  } catch (e) {
+    print("⚠️ Exception: $e");
+  }
+}
+Future<bool> verifyTransactionPin(String email, String pin) async {
+  final url = Uri.parse("$baseurl/auth/verify-transaction-pin"); 
+  final response = await http.post(
+    url,
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({
+      "email": email,
+      "pin": pin,
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    return data["success"] == true;
+  } else {
+    throw Exception("Failed to verify PIN: ${response.body}");
+  }
+}
+
 
 
 }

@@ -5,9 +5,9 @@ sealed class FetchdataEvent {}
 
 
 class FetchUserDataEvent extends FetchdataEvent{
-  final String? email;
+  final String email;
   FetchUserDataEvent({
-    this.email,
+   required this.email,
   });
 }
 

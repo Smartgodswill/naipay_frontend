@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:meta/meta.dart';
 import 'package:naipay/model/getusersmodels.dart';
 import 'package:naipay/model/loginusermodels.dart';
 import 'package:naipay/services/restorewallet_service.dart';
 import 'package:naipay/services/userapi_service.dart';
-import 'package:naipay/services/walletservice.dart';
 
 part 'restorewallet_event.dart';
 part 'restorewallet_state.dart';
@@ -49,23 +50,44 @@ class RestorewalletBloc extends Bloc<RestorewalletEvent, RestorewalletState> {
       
     }
   }
-  Future<void> _restorVerifedwallet(RestoreUsersWalletVerifyOtpEvent event ,Emitter<RestorewalletState> emit)async{
+ Future<void> _restorVerifedwallet(
+    RestoreUsersWalletVerifyOtpEvent event,
+    Emitter<RestorewalletState> emit) async {
 
-    emit(RestorewalleLoadingState());
-    try {
-      WalletService().resetWallet();
-      final result=  await UserService().verifyLogInOtp(LoginUserModels(email: event.email,otp: event.otp));
-      final String mnemonics = result['mnemonic'] ?? '';
-      print(mnemonics);
-      final userInfo = await UserService().getUsersInfo(Getuser(email: event.email));
-      print(userInfo['email']);
-      final walletdata=   await RestorewalletService().restoreWallet(mnemonics,userInfo['bitcoin_descriptor'],userInfo['email'],);
-      print('Bitcoin data is:$walletdata');
-      emit(RestoreVerifiedwalletSuccessState(walletdata,userInfo));
-    } catch (e) {
-      print(e);
-      emit(RestorewalletFailureState('RestorewalletFailureState on bitcoinpalava$e'));
-      
-    }
+  final messages = [
+    "Verifying OTP...",
+    "Please wait...",
+    "Restoring wallet...",
+    "Almost done..."
+  ];
+
+  int i = 0;
+
+  // Create a timer that updates the state every 2s
+  final timer = Timer.periodic(const Duration(seconds: 25), (_) {
+    emit(RestorewalleLoadingState(messages[i++ % messages.length]));
+  });
+
+  try {
+    final result = await UserService()
+        .verifyLogInOtp(LoginUserModels(email: event.email, otp: event.otp));
+
+    final String mnemonics = result['mnemonic'] ?? '';
+
+    final userInfo = await UserService().getUsersInfo(Getuser(email: event.email));
+
+    final walletdata = await RestorewalletService().restoreWallet(
+      mnemonics,
+      userInfo['bitcoin_descriptor'],
+      userInfo['email'],
+    );
+
+    timer.cancel(); // stop updating messages
+    emit(RestoreVerifiedwalletSuccessState(walletdata, userInfo));
+
+  } catch (e) {
+    timer.cancel(); // stop updating messages if error occurs
+    emit(RestorewalletFailureState('$e'));
   }
+}
 }
