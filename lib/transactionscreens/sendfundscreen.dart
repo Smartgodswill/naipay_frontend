@@ -553,7 +553,6 @@ Future<void> showUsdtSummaryBottomSheet(
                           ),
                         ),
                         () async {
-                          Navigator.pop(context);
                         },
                       ),
                     ),
