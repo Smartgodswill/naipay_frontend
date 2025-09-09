@@ -20,7 +20,7 @@ class Recievefundscreen extends StatefulWidget {
   State<Recievefundscreen> createState() => _RecievefundscreenState();
 }
 
-String selectedCurrency = 'Bitcoin';
+String selectedCurrency = 'Bitcoin'?? '';
 
 class _RecievefundscreenState extends State<Recievefundscreen> {
   final  TextEditingController ammountController = TextEditingController();
@@ -47,8 +47,8 @@ Send $formattedAmount to:
   @override
   Widget build(BuildContext context) {
     final qrData = selectedCurrency == 'Bitcoin'
-        ? widget.walletData['bitcoin_address']
-        : widget.userInfo['usdtAddress'];
+        ? widget.walletData['bitcoin_address']?? ''
+        : widget.userInfo['usdtAddress']?? '';
     final size = MediaQuery.of(context).size;
     return Scaffold(
       appBar: AppBar(

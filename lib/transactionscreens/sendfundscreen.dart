@@ -8,7 +8,7 @@ import 'package:naipay/services/userapi_service.dart';
 import 'package:naipay/services/walletservice.dart';
 import 'package:naipay/state%20management/sendtransactionpin/bloc/sendtransactionpin_bloc.dart';
 import 'package:naipay/theme/colors.dart';
-import 'package:naipay/transactionscreens/settransactionpinscreen.dart';
+import 'package:naipay/transactionscreens/verifytransactionpinscreen.dart';
 import 'package:naipay/utils/utils.dart';
 
 class Sendfundscreen extends StatefulWidget {
@@ -281,7 +281,9 @@ class _SendfundscreenState extends State<Sendfundscreen> {
                       context,
                       email: widget.userInfo['email'],
                       toAddress: addressController.text.trim(),
-                      amount: amountValue,
+                      amount:amountValue,
+                      userInfo: widget.userInfo,
+                      walletInfo: widget.wallets
                     );
                   } else {
                     customSnackBar('Coin type not supported yet', context);
@@ -300,7 +302,6 @@ class _SendfundscreenState extends State<Sendfundscreen> {
 }
 
 final formatter = NumberFormat('#,##0.########', 'en_US');
-
 Future<void> showConfirmBottomSheet(
   BuildContext context, {
   required String userMnemonic,
@@ -313,11 +314,11 @@ Future<void> showConfirmBottomSheet(
   required Map<String, dynamic>? walletInfo,
 }) async {
   try {
-    // Convert to sats
+    // Convert to sats for preview only
     final int amountInSats = (amountInBtc * 100000000).round();
     print('Converting amount: $amountInBtc BTC to $amountInSats sats');
 
-    // Call preview directly
+    // Call preview with satoshis
     final previewData = await WalletService().previewTransaction(
       userMnemonic: userMnemonic,
       recipientAddress: recipientAddress.trim(),
@@ -326,8 +327,7 @@ Future<void> showConfirmBottomSheet(
 
     final fee = previewData['fee'] as int;
     final amount = previewData['amount'] as int;
-    print(fee);
-    print(amount);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -359,18 +359,13 @@ Future<void> showConfirmBottomSheet(
                 ),
               ),
               const SizedBox(height: 20),
-
-              _infoRow(
-                "Amount:",
-                "${formatter.format(amount / 100000000)} BTC",
-              ),
-              _infoRow(" Recieptiant Address:", recipientAddress),
+              _infoRow("Amount:", "${formatter.format(amount / 100000000)} BTC"),
+              _infoRow("Recipient Address:", recipientAddress),
               _infoRow("Fee:", "${formatter.format(fee / 100000000)} BTC"),
               _infoRow(
                 "Total:",
                 "${formatter.format((amount / 100000000) + (fee / 100000000))} BTC",
               ),
-
               if (note != null && note.isNotEmpty) _infoRow("Note", note),
               const Spacer(),
               Row(
@@ -415,25 +410,25 @@ Future<void> showConfirmBottomSheet(
                           ),
                         ),
                         () async {
-                          Navigator.pop(
-                            context,
-                          ); // Close the bottom sheet first
+                          Navigator.pop(context);
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  BlocProvider<SendtransactionpinBloc>(
-                                    create: (_) =>
-                                        SendtransactionpinBloc(), // Assuming the bloc constructor doesn't need params; adjust if it does
-                                    child: SetTransactionPinView(
-                                      userInfo: userInfo ?? {},
-                                      toaddress: recipientAddress,
-                                      amount: amount,
-                                      previewData: previewData,
-                                      coin: coin,
-                                      walletInfo:walletInfo?? {} ,
-                                      fromAddress: fromAddress,
-                                    ),
-                                  ),
+                              builder: (context) => BlocProvider<SendtransactionpinBloc>(
+                                create: (_) => SendtransactionpinBloc(),
+                                child: SetTransactionPinView(
+                                  userInfo: userInfo ?? {},
+                                  amount: amountInBtc, // Pass as double BTC
+                                  previewData: {
+                                    ...previewData,
+                                    'amount': amountInBtc, // Store original double for display
+                                    'fee': fee / 100000000, // Convert fee back to BTC for display
+                                  },
+                                  coin: coin,
+                                  walletInfo: walletInfo ?? {},
+                                  fromAddress: fromAddress,
+                                  toAddress: recipientAddress,
+                                ),
+                              ),
                             ),
                           );
                         },
@@ -455,27 +450,36 @@ Future<void> showConfirmBottomSheet(
   }
 }
 
-Future<void> showUsdtSummaryBottomSheet(
+
+  Future<void> showUsdtSummaryBottomSheet(
   BuildContext context, {
   required String email,
   required String toAddress,
   required double amount,
+  required Map<String, dynamic> userInfo,
+  required Map<String, dynamic> walletInfo,
   String? note,
 }) async {
   double fee = 0;
+  bool isLoading = true;
 
   try {
-    // Fetch fee dynamically
     fee = await UserService().fetchUsdtFee(
       email: email,
       toAddress: toAddress,
       amount: amount,
     );
+    print('Debug - USDT Amount: $amount, Fee: $fee'); // Add debug print
   } catch (e) {
-    // Handle error if fee cannot be fetched
     print('Error fetching fee: $e');
     fee = 0;
+    if (!context.mounted) return;
+    customSnackBar('Failed to fetch fee: $e', context);
+  } finally {
+    isLoading = false;
   }
+
+  if (!context.mounted) return;
 
   showModalBottomSheet(
     context: context,
@@ -508,54 +512,79 @@ Future<void> showUsdtSummaryBottomSheet(
               style: TextStyle(color: Colors.white, fontSize: 18),
             ),
             const SizedBox(height: 20),
-
-            _infoRow("Amount", "$amount USDT"),
-            _infoRow("ToAddress", toAddress),
-            _infoRow("Fee", "${fee.toStringAsFixed(6)} USDT"),
-            if (note != null && note.isNotEmpty) _infoRow("Note", note),
+            if (isLoading)
+              Center(child: CircularProgressIndicator(color: kmainWhitecolor))
+            else ...[
+              _infoRow("Amount", "$amount USDT"),
+              _infoRow("To Address", toAddress),
+              _infoRow("Fee", "${fee.toStringAsFixed(6)} USDT"),
+              if (note != null && note.isNotEmpty) _infoRow("Note", note),
+            ],
             const Spacer(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: customButtonContainer(
-                        40,
-                        150,
-                        BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          color: ksubcolor,
-                        ),
-                        Center(
-                          child: Text(
-                            'Cancel',
-                            style: TextStyle(color: kmainBackgroundcolor),
-                          ),
-                        ),
-                        () async {
-                          Navigator.pop(context);
-                        },
+                  padding: const EdgeInsets.all(8.0),
+                  child: customButtonContainer(
+                    40,
+                    150,
+                    BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: ksubcolor,
+                    ),
+                    Center(
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(color: kmainBackgroundcolor),
                       ),
                     ),
+                    () => Navigator.pop(context),
+                  ),
+                ),
                 Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: customButtonContainer(
-                        40,
-                        150,
-                        BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          color: ksubcolor,
-                        ),
-                        Center(
-                          child: Text(
-                            'Confirm',
-                            style: TextStyle(color: kmainBackgroundcolor),
-                          ),
-                        ),
-                        () async {
-                        },
+                  padding: const EdgeInsets.all(8.0),
+                  child: customButtonContainer(
+                    40,
+                    150,
+                    BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: kwhitecolor,
+                    ),
+                    Center(
+                      child: Text(
+                        'Confirm',
+                        style: TextStyle(color: kmainWhitecolor),
                       ),
                     ),
+                    isLoading
+                        ? () {} // Disable button while loading
+                        : () async {
+                            Navigator.pop(context);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => BlocProvider<SendtransactionpinBloc>(
+                                  create: (_) => SendtransactionpinBloc(),
+                                  child: SetTransactionPinView(
+                                    userInfo: userInfo,
+                                    amount: amount, // Ensure this is 60.0
+                                    previewData: {
+                                      'amount': amount,
+                                      'fee': fee,
+                                      'toAddress': toAddress,
+                                      'note': note,
+                                    },
+                                    coin: 'USDT',
+                                    walletInfo: walletInfo,
+                                    fromAddress: walletInfo['usdt_address'] ?? '',
+                                    toAddress: toAddress,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                  ),
+                ),
               ],
             ),
           ],

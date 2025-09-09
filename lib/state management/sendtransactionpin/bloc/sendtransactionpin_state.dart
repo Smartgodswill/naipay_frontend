@@ -23,3 +23,13 @@ class TransactionFailure extends  SendtransactionpinState {
   final String error;
   TransactionFailure(this.error);
 }
+
+class UsdtTransactionSuccess extends  SendtransactionpinState {
+  final Map<String, dynamic> transactionData;
+  UsdtTransactionSuccess(this.transactionData);
+}
+
+class UsdtTransactionFailure extends  SendtransactionpinState {
+  final String error;
+  UsdtTransactionFailure(this.error);
+}

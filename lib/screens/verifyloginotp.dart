@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:naipay/state%20management/restorewallet/bloc/restorewallet_bloc.dart';
@@ -8,7 +10,8 @@ import 'package:pin_code_fields/pin_code_fields.dart';
 
 class VerifyloginOtpScreen extends StatefulWidget {
   final String email;
-  const VerifyloginOtpScreen({super.key, required this.email});
+  final String password;
+  const VerifyloginOtpScreen({super.key, required this.email, required this.password});
 
   @override
   State<VerifyloginOtpScreen> createState() => _VerifyloginOtpScreenState();
@@ -16,6 +19,30 @@ class VerifyloginOtpScreen extends StatefulWidget {
 
 class _VerifyloginOtpScreenState extends State<VerifyloginOtpScreen> {
   final otpController = TextEditingController();
+   bool canResend = true;
+  int resendTimer = 5;
+  Timer? _countdownTimer;
+
+  void _startCoolDown() {
+    setState(() {
+      canResend = false;
+      resendTimer = 30;
+    });
+
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (resendTimer == 0) {
+        timer.cancel();
+        setState(() {
+          canResend = true;
+        });
+      } else {
+        setState(() {
+          resendTimer--;
+        });
+      }
+    });
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -168,16 +195,21 @@ class _VerifyloginOtpScreenState extends State<VerifyloginOtpScreen> {
                         "Did'nt get a code?",
                         style: TextStyle(color: kmainWhitecolor, fontSize: 15),
                       ),
-                      InkWell(
-                        onTap: () {},
-
+                           InkWell(
+                        onTap: canResend
+                            ? () {
+                                context.read<RestorewalletBloc>().add(
+                               RestoreUsersWalletOtpEvent(widget.email, widget.password)
+                                );
+                                customSnackBar("OTP resend requested", context);
+                                _startCoolDown();
+                              }
+                            : null,
                         child: Text(
-                          ' Resend',
-                          style: TextStyle(
-                            color: kwhitecolor,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
+                          canResend
+                              ? " Resend"
+                              : " Resending otp \n in $resendTimer sec",
+                          style: TextStyle(color: kwhitecolor, fontSize: 18),
                         ),
                       ),
                     ],

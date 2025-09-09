@@ -20,14 +20,14 @@ class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool isSubmitting = false;
-   final List<String> loginMessages = [
+  final List<String> loginMessages = [
     "Welcome back,\nNaipay missed you!",
     "Let's get you\nstarted!",
     "Ready to conquer\nthe day?",
     "Good to see you\nagain!",
-    "Let’s make today\nawesome!"
+    "Let’s make today\nawesome!",
   ];
-  
+
   @override
   Widget build(BuildContext context) {
     // Randomly select one message
@@ -56,16 +56,24 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SingleChildScrollView(
         child: BlocConsumer<RestorewalletBloc, RestorewalletState>(
           listener: (context, state) {
-             setState(() => isSubmitting = false);
+            setState(() => isSubmitting = false);
             if (state is RestorewalletSuccessState) {
               customSnackBar('Otp send successfully', context);
-               Navigator.push(context, MaterialPageRoute(builder: (context){
-                String email=  emailController.text;
-                return  VerifyloginOtpScreen(email:email,);
-              }));
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) {
+                    String email = emailController.text;
+                    String password = passwordController.text;
+                    return VerifyloginOtpScreen(
+                      email: email,
+                      password: password,
+                    );
+                  },
+                ),
+              );
             } else if (state is RestorewalletFailureState) {
               customDialog(context, state.message);
-             
             }
           },
           builder: (context, state) {
@@ -86,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(left: 15,top: 5),
+                      padding: const EdgeInsets.only(left: 15, top: 5),
                       child: Text(
                         'Please input your credentials to get you In',
                         style: TextStyle(color: kmainWhitecolor, fontSize: 13),
@@ -154,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: passwordController,
                         obscureText: obscureText,
                         decoration: InputDecoration(
-                          hintStyle: TextStyle(color:kmainWhitecolor),
+                          hintStyle: TextStyle(color: kmainWhitecolor),
                           hintText: 'Enter your password',
                           border: InputBorder.none,
                           suffixIcon: InkWell(
@@ -189,12 +197,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
                 SizedBox(height: 80),
-               InkWell(
-                onTap: (){
-                  context.read<RestorewalletBloc>().add(RestoreUsersWalletOtpEvent(emailController.text, passwordController.text));
-                },
-                 child: customContainer(50, 300, BoxDecoration(
-                   boxShadow: [
+                InkWell(
+                  onTap: state is RestorewalleLoadingState
+                      ? null
+                      : () {
+                          context.read<RestorewalletBloc>().add(
+                            RestoreUsersWalletOtpEvent(
+                              emailController.text,
+                              passwordController.text,
+                            ),
+                          );
+                        },
+                  child: customContainer(
+                    50,
+                    300,
+                    BoxDecoration(
+                      boxShadow: [
                         BoxShadow(
                           color: kwhitecolor,
                           blurRadius: 5,
@@ -202,17 +220,28 @@ class _LoginScreenState extends State<LoginScreen> {
                           spreadRadius: 0.9,
                         ),
                       ],
-                  borderRadius: BorderRadius.circular(30),
-                  color: kmainBackgroundcolor
-                 ), Center(child: state is RestorewalleLoadingState? SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: ksubbackgroundcolor,
+                      borderRadius: BorderRadius.circular(30),
+                      color: kmainBackgroundcolor,
+                    ),
+                    state is RestorewalleLoadingState
+                        ? Center(
+                            child: SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: ksubbackgroundcolor,
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              'Login',
+                              style: TextStyle(color: kmainWhitecolor),
+                            ),
+                          ),
                   ),
-                ): Text('Login',style: TextStyle(color: kmainWhitecolor),),)),
-               ),
+                ),
                 SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

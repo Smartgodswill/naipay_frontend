@@ -7,7 +7,44 @@ import 'package:http/http.dart' as http;
 import 'package:naipay/model/walletmodel.dart';
 
 class UserService {
-  static const String baseurl = 'http://10.193.255.174:2000';
+  static const String baseurl = 'http://10.0.2.2:2000';
+
+
+   Future<Map<String, dynamic>> sendTrc20Transaction({
+    required String email,
+    required String toAddress,
+    required int amount,
+  }) async {
+    final url = Uri.parse("$baseurl/auth/send-trc20-transactions");
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "email": email,
+          "toAddress": toAddress,
+          "amount": amount.toString(), 
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data["success"] == true) {
+          return data; // { success, txFee, txTransfer, feeUSDT, newBalance }
+        } else {
+          throw Exception(data["error"] ?? "Transaction failed");
+        }
+      } else {
+        throw Exception("Error: ${response.body}");
+      }
+    } catch (e) {
+      throw Exception("⚠️ Exception while sending: $e");
+    }
+  }
+
 
   Future<void> signup(User user) async {
     final response = await http.post(
@@ -303,6 +340,7 @@ Future<bool> verifyTransactionPin(String email, String pin) async {
     throw Exception("Failed to verify PIN: ${response.body}");
   }
 }
+
 
 
 

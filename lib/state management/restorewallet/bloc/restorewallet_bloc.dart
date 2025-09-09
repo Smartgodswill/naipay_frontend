@@ -51,9 +51,9 @@ class RestorewalletBloc extends Bloc<RestorewalletEvent, RestorewalletState> {
     }
   }
  Future<void> _restorVerifedwallet(
-    RestoreUsersWalletVerifyOtpEvent event,
-    Emitter<RestorewalletState> emit) async {
-
+  RestoreUsersWalletVerifyOtpEvent event,
+  Emitter<RestorewalletState> emit,
+) async {
   final messages = [
     "Verifying OTP...",
     "Please wait...",
@@ -63,7 +63,10 @@ class RestorewalletBloc extends Bloc<RestorewalletEvent, RestorewalletState> {
 
   int i = 0;
 
-  // Create a timer that updates the state every 2s
+  // Emit the first message immediately
+  emit(RestorewalleLoadingState(messages[i++ % messages.length]));
+
+  // Then start timer to update every 25s
   final timer = Timer.periodic(const Duration(seconds: 25), (_) {
     emit(RestorewalleLoadingState(messages[i++ % messages.length]));
   });
@@ -74,7 +77,8 @@ class RestorewalletBloc extends Bloc<RestorewalletEvent, RestorewalletState> {
 
     final String mnemonics = result['mnemonic'] ?? '';
 
-    final userInfo = await UserService().getUsersInfo(Getuser(email: event.email));
+    final userInfo =
+        await UserService().getUsersInfo(Getuser(email: event.email));
 
     final walletdata = await RestorewalletService().restoreWallet(
       mnemonics,
@@ -82,12 +86,12 @@ class RestorewalletBloc extends Bloc<RestorewalletEvent, RestorewalletState> {
       userInfo['email'],
     );
 
-    timer.cancel(); // stop updating messages
+    timer.cancel(); // stop periodic updates
     emit(RestoreVerifiedwalletSuccessState(walletdata, userInfo));
-
   } catch (e) {
-    timer.cancel(); // stop updating messages if error occurs
+    timer.cancel();
     emit(RestorewalletFailureState('$e'));
   }
 }
+
 }

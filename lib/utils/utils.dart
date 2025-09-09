@@ -229,5 +229,8 @@ Widget _infoRow(String label, String value) {
     ),
   );
 }
-
+String formatUsdtAmount(double amount) {
+  if (amount == 0) return '0.000000 USDT';
+  return '${amount.toStringAsFixed(6).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} USDT';
+}
 

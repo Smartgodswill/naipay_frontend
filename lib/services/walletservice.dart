@@ -212,7 +212,7 @@ class WalletService {
   }
 
  
-Future<double> _fetchRecommendedFeeRate({int targetBlocks = 25}) async {
+Future<double> _fetchRecommendedFeeRate({int targetBlocks = 5}) async {
   try {
     // Ask Electrum for fee rate estimate
     final feeRate = await _electrumBlockchain!.estimateFee(targetBlocks);

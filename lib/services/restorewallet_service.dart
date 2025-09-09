@@ -34,28 +34,35 @@ Future<Map<String, dynamic>> restoreWallet(
     );
 
     // Initialize blockchain with Esplora config (testnet)
-    final blockchain = await Blockchain.create(
-      config: BlockchainConfig.esplora(
-        config: EsploraConfig(
-          baseUrl: 'https://mempool.space/testnet/api',
-          stopGap: 100,
-          timeout: 50,
-        ),
-      ),
-    );
+   final blockchain = await Blockchain.create(
+  config: BlockchainConfig.electrum(
+    config: ElectrumConfig(
+      url: "ssl://electrum.blockstream.info:60002",
+      retry: 5,
+      timeout: 5,
+      stopGap: 20, validateDomain: true,
+    ),
+  ),
+);
+
   print(blockchain.toString());
-    // Use provided db_path or memory DB (for persistence you want a path)
-    final wallet = await Wallet.create(
-      descriptor: externalDescriptor,
-      changeDescriptor: internalDescriptor,
-      network: network,
-      databaseConfig: DatabaseConfig.memory() ,
-      
-    );
+    
+final wallet = await Wallet.create(
+  descriptor: externalDescriptor,
+  changeDescriptor: internalDescriptor,
+  network: network,
+  databaseConfig:DatabaseConfig.memory()
+);
+
     print(wallet.toString());
 
-    // Sync wallet with blockchain
-    await wallet.sync(blockchain);
+  try {
+  await wallet.sync(blockchain);
+} catch (e, st) {
+  print("Wallet sync failed: $e");
+  print("Stack: $st");
+}
+
 
     // Gather wallet data
     final balance = await wallet.getBalance();
