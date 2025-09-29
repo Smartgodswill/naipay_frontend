@@ -8,6 +8,7 @@ import 'package:naipay/state%20management/pricesbloc/prices_bloc.dart';
 import 'package:naipay/state%20management/restorewallet/bloc/restorewallet_bloc.dart';
 import 'package:naipay/state%20management/sendfunds/bloc/sendfunds_bloc.dart';
 import 'package:naipay/state%20management/sendtransactionpin/bloc/sendtransactionpin_bloc.dart';
+import 'package:naipay/state%20management/swap/bloc/sendswaptobitnob_bloc.dart';
 import 'package:naipay/theme/colors.dart';
 
 void main() async {
@@ -22,6 +23,8 @@ void main() async {
         BlocProvider(create: (context) => PricesBloc()),
         BlocProvider(create: (context) => SendfundsBloc()),
         BlocProvider(create: (context) => SendtransactionpinBloc()),
+        BlocProvider(create: (context) => SendswaptobitnobBloc()),
+
       ],
       child: const MyApp()),
   

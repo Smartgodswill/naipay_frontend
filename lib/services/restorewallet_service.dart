@@ -12,28 +12,23 @@ Future<Map<String, dynamic>> restoreWallet(
   Network network = Network.Testnet,
 }) async {
   try {
-    // Convert the mnemonic phrase string into a Mnemonic object
     final mnemonic = await Mnemonic.fromString(mnemonicWords);
     print(mnemonic);
-    // Create descriptor secret key from mnemonic
     final descriptorSecretKey = await DescriptorSecretKey.create(network: network, mnemonic: mnemonic);
     print(descriptorSecretKey);
 
-    // Create external (receive) descriptor
     final externalDescriptor = await Descriptor.newBip84(
       secretKey: descriptorSecretKey,
       network: network,
       keychain: KeychainKind.External,
     );
 
-    // Create internal (change) descriptor
     final internalDescriptor = await Descriptor.newBip84(
       secretKey: descriptorSecretKey,
       network: network,
       keychain: KeychainKind.Internal,
     );
 
-    // Initialize blockchain with Esplora config (testnet)
    final blockchain = await Blockchain.create(
   config: BlockchainConfig.electrum(
     config: ElectrumConfig(
@@ -62,9 +57,6 @@ final wallet = await Wallet.create(
   print("Wallet sync failed: $e");
   print("Stack: $st");
 }
-
-
-    // Gather wallet data
     final balance = await wallet.getBalance();
     final addressInfo = await wallet.getAddress(
       addressIndex: AddressIndex.lastUnused(),
@@ -80,13 +72,12 @@ final wallet = await Wallet.create(
       'transaction_history': transactions,
     };
   } catch (e, stack) {
-    print('❌ Failed to restore wallet: $e');
-    print('📌 Stack: $stack');
+    print('Failed to restore wallet: $e');
+    print('Stack: $stack');
     throw Exception('Failed to restore wallet for $email,try checking your internet connection while you restart this app');
   }
 }
 
   }
 
-  /// Retrieve wallet data
  

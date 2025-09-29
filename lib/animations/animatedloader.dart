@@ -32,9 +32,12 @@ class _AnimatedLoadingDotsState extends State<AnimatedLoadingDots> with TickerPr
     return AnimatedBuilder(
       animation: _dotAnimation,
       builder: (context, child) {
-        return Text(
-          '....' * _dotAnimation.value,
-          style: TextStyle(fontSize: 20, color: kwhitecolor),
+        return Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Text(
+            '....' * _dotAnimation.value,
+            style: TextStyle(fontSize: 20, color: kwhitecolor),
+          ),
         );
       },
     );

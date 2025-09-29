@@ -1,17 +1,12 @@
 import 'package:bdk_flutter/bdk_flutter.dart';
 
 class WalletService {
-  // 🔹 Singleton Electrum instance
   static Blockchain? _electrumBlockchain;
-
-  // 🔹 Initialize Electrum blockchain client
   Future<void> initBlockchain(Network network) async {
     if (_electrumBlockchain != null) return;
-
     final electrumUrl = network == Network.Testnet
         ? "ssl://electrum.blockstream.info:60002"
         : "ssl://electrum.blockstream.info:50002";
-
     _electrumBlockchain = await Blockchain.create(
       config: BlockchainConfig.electrum(
         config: ElectrumConfig(
@@ -24,7 +19,6 @@ class WalletService {
     );
   }
 
-  // 🔹 Create a new Bitcoin wallet
   Future<Map<String, dynamic>> createBitcoinWallet(
       String email, Network network) async {
     await initBlockchain(network);
@@ -111,7 +105,7 @@ class WalletService {
     };
   }
 
-  // 🔹 Preview Transaction
+  //  Preview Transaction
  Future<Map<String, dynamic>> previewTransaction({
   required String userMnemonic,
   required String recipientAddress,
@@ -125,7 +119,7 @@ class WalletService {
     throw Exception("Amount below dust limit (546 sats).");
   }
 
-  // 🔹 Validate BTC address
+  //  Validate BTC address
   try {
     final address = await Address.create(address: recipientAddress);
   } catch (e) {
@@ -192,7 +186,7 @@ class WalletService {
 }
 
 
-  // 🔹 Confirm Transaction
+  //  Confirm Transaction
   Future<Map<String, dynamic>> confirmTransaction({
     required PartiallySignedTransaction psbt,
     required Wallet wallet,
@@ -214,22 +208,44 @@ class WalletService {
  
 Future<double> _fetchRecommendedFeeRate({int targetBlocks = 5}) async {
   try {
-    // Ask Electrum for fee rate estimate
     final feeRate = await _electrumBlockchain!.estimateFee(targetBlocks);
-
-    // Convert to sats/vbyte (make sure it's called as a function)
     final rate = feeRate.asSatPerVb();
-
-    // Ensure the value is valid and not zero/negative
     if (rate > 0) {
       return rate;
     }
   } catch (e) {
-    print("⚠️ Failed to fetch fee rate: $e");
+    print(" Failed to fetch fee rate: $e");
   }
+  return 2.0; 
+}
 
-  // Fallback: safe low fee to avoid failures
-  return 2.0; // sats/vbyte
+
+Future<String> sendBtcToBitnob({
+  required String userMnemonic,
+  required String depositAddress,
+  required double btcAmount, // in BTC
+  Network network = Network.Testnet,
+}) async {
+  final int amountInSats = (btcAmount * 100000000).toInt();
+
+  final preview = await previewTransaction(
+    userMnemonic: userMnemonic,
+    recipientAddress: depositAddress,
+    amountInSats: amountInSats,
+    network: network,
+  );
+
+  final psbt = preview['psbt'] as PartiallySignedTransaction;
+  final wallet = preview['wallet'] as Wallet;
+  final blockchain = preview['blockchain'] as Blockchain;
+
+  final result = await confirmTransaction(
+    psbt: psbt,
+    wallet: wallet,
+    blockchain: blockchain,
+  );
+
+  return result['txid'] as String;
 }
 
 }

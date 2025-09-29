@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:naipay/animations/animatedicon.dart';
+import 'package:naipay/state%20management/fetchdata/bloc/fetchdata_bloc.dart';
 import 'package:naipay/state%20management/sendtransactionpin/bloc/sendtransactionpin_bloc.dart';
 import 'package:naipay/subscreens/homepage.dart';
 import 'package:naipay/theme/colors.dart';
@@ -82,23 +83,24 @@ class _SetTransactionPinViewState extends State<SetTransactionPinView> {
             _hideLoading();
             customSnackBar("✅ PIN verified, proceeding...", context);
             final int amountInSats = (widget.coin.toUpperCase() == 'BTC')
-                  ? (widget.amount * 100000000).toInt() // Convert BTC to satoshis
-                  : widget.amount.toInt();
-             try {
-               context.read<SendtransactionpinBloc>().add(
-                    SendBTCTransactionEvent(
-                      email: widget.userInfo['email'],
-                      previewData: widget.previewData,
-                      fromAddress: widget.fromAddress,
-                      toAddress: widget.toAddress,
-                      amount: amountInSats,
-                      coin: widget.coin,
-                      walletInfo: widget.walletInfo,
-                    ),
-                  );
-             } catch (e) {
+                ? (widget.amount * 100000000)
+                      .toInt() // Convert BTC to satoshis
+                : widget.amount.toInt();
+            try {
+              context.read<SendtransactionpinBloc>().add(
+                SendBTCTransactionEvent(
+                  email: widget.userInfo['email'],
+                  previewData: widget.previewData,
+                  fromAddress: widget.fromAddress,
+                  toAddress: widget.toAddress,
+                  amount: amountInSats,
+                  coin: widget.coin,
+                  walletInfo: widget.walletInfo,
+                ),
+              );
+            } catch (e) {
               print('Error adding SendBTCTransactionEvent: $e');
-             }
+            }
           }
         },
         builder: (context, state) {
@@ -114,22 +116,26 @@ class _SetTransactionPinViewState extends State<SetTransactionPinView> {
 
           if (state is TransactionSuccess) {
             final tx = state.transactionData;
-            print('TransactionSuccess txData in SetTransactionPinView: $tx'); // Debug log
-            final updatedWalletInfo = tx['updatedWalletInfo'] ?? widget.walletInfo;
+            print(
+              'TransactionSuccess txData in SetTransactionPinView: $tx',
+            ); // Debug log
+            final updatedWalletInfo =
+                tx['updatedWalletInfo'] ?? widget.walletInfo;
             final lastSentAddress = widget.toAddress;
-            final double amount = double.tryParse(tx['amount'].toString()) ?? 0.0;
+            final double amount =
+                double.tryParse(tx['amount'].toString()) ?? 0.0;
             final double fee = double.tryParse(tx['fee'].toString()) ?? 0.0;
             final double total = amount + fee;
 
             if (widget.coin.toUpperCase() == 'USDT') {
-              final List<Map<String, dynamic>> trc20Transactions =
-                  List<Map<String, dynamic>>.from(
-                      updatedWalletInfo['trc20Transactions'] ?? []);
-
               return _TransactionSummary(
                 txData: tx,
                 onBack: () {
                   if (!mounted) return;
+                  context.read<FetchdataBloc>().add(
+                    FetchUserDataEvent(email: widget.userInfo['email']),
+                  );
+
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(
@@ -137,12 +143,12 @@ class _SetTransactionPinViewState extends State<SetTransactionPinView> {
                         email: widget.userInfo['email'],
                         address: lastSentAddress,
                         pendingOutgoingBtc: 0,
-                        pendingOutgoingUsdt: total,
                         userInfo: {
                           ...widget.userInfo,
                           'usdt_balance': updatedWalletInfo['usdt_balance'],
+                          'usdt_transaction_history':
+                              updatedWalletInfo['trc20Transactions'] ?? [],
                         },
-                        trc20Transactions: trc20Transactions,
                       ),
                     ),
                     (route) => false,
@@ -153,19 +159,24 @@ class _SetTransactionPinViewState extends State<SetTransactionPinView> {
               return _TransactionSummary(
                 txData: tx,
                 onBack: () {
+                  if (!mounted) return;
+                  context.read<FetchdataBloc>().add(
+                    FetchUserDataEvent(email: widget.userInfo['email']),
+                  );
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(
                       builder: (_) => Homepage(
                         email: widget.userInfo['email'],
                         address: lastSentAddress,
-                        pendingOutgoingBtc: total,
+                        pendingOutgoingBtc: 0,
                         userInfo: {
                           ...widget.userInfo,
-                          'bitcoin_balance': updatedWalletInfo['balance_sats'] ?? 0,
-                          'transaction_history': updatedWalletInfo['transaction_history'] ?? [],
+                          'bitcoin_balance':
+                              updatedWalletInfo['balance_sats'] ?? 0,
+                          'transaction_history':
+                              updatedWalletInfo['transaction_history'] ?? [],
                         },
-                        trc20Transactions: null,
                       ),
                     ),
                     (route) => false,
@@ -178,23 +189,23 @@ class _SetTransactionPinViewState extends State<SetTransactionPinView> {
           return _PinInput(
             onPinCompleted: (pin) {
               final int amountInSats = (widget.coin.toUpperCase() == 'BTC')
-                  ? (widget.amount * 100000000).toInt() 
+                  ? (widget.amount * 100000000).toInt()
                   : widget.amount.toInt();
               context.read<SendtransactionpinBloc>().add(
-                    VerifyPinEvent(
-                      widget.userInfo['email'],
-                      pin,
-                      sendTransactionEvent: SendBTCTransactionEvent(
-                        email: widget.userInfo['email'],
-                        previewData: widget.previewData,
-                        fromAddress: widget.fromAddress,
-                        toAddress: widget.toAddress,
-                        amount: amountInSats,
-                        coin: widget.coin,
-                        walletInfo: widget.walletInfo,
-                      ),
-                    ),
-                  );
+                VerifyPinEvent(
+                  widget.userInfo['email'],
+                  pin,
+                  sendTransactionEvent: SendBTCTransactionEvent(
+                    email: widget.userInfo['email'],
+                    previewData: widget.previewData,
+                    fromAddress: widget.fromAddress,
+                    toAddress: widget.toAddress,
+                    amount: amountInSats,
+                    coin: widget.coin,
+                    walletInfo: widget.walletInfo,
+                  ),
+                ),
+              );
             },
             controller: pinController,
           );
@@ -208,10 +219,7 @@ class _PinInput extends StatelessWidget {
   final void Function(String) onPinCompleted;
   final TextEditingController controller;
 
-  const _PinInput({
-    required this.onPinCompleted,
-    required this.controller,
-  });
+  const _PinInput({required this.onPinCompleted, required this.controller});
 
   @override
   Widget build(BuildContext context) {
@@ -265,14 +273,17 @@ class _PinInput extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.only(left: 20, top: 8),
-              child: Text('Forgotten Pin? ', style: TextStyle(color: kmainWhitecolor)),
+              child: Text(
+                'Forgotten Pin? ',
+                style: TextStyle(color: kmainWhitecolor),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.only(left: 2, top: 8),
               child: Text('Reset Pin', style: TextStyle(color: kwhitecolor)),
-            )
+            ),
           ],
-        )
+        ),
       ],
     );
   }
@@ -294,8 +305,15 @@ class _TransactionSummary extends StatelessWidget {
 
     String formatCryptoAmount(double value, String coin) {
       if (coin == 'USDT') {
-        String formatted = value.toStringAsFixed(6).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
-        return formatted.endsWith('.000000') ? formatted.replaceAll('.000000', '') : '$formatted USDT';
+        String formatted = value
+            .toStringAsFixed(6)
+            .replaceAllMapped(
+              RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+              (Match m) => '${m[1]},',
+            );
+        return formatted.endsWith('.000000')
+            ? formatted.replaceAll('.000000', '')
+            : '$formatted USDT';
       } else if (coin == 'BTC') {
         return '${value.toStringAsFixed(8).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} BTC';
       }
@@ -331,18 +349,27 @@ class _TransactionSummary extends StatelessWidget {
                     const SizedBox(height: 16),
                     Text(
                       'From: ${txData['fromAddress'] ?? 'N/A'}',
-                      style: TextStyle(color: kmainWhitecolor, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: kmainWhitecolor,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
                       'To: ${txData['toAddress'] ?? 'N/A'}',
-                      style: TextStyle(color: kmainWhitecolor, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: kmainWhitecolor,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         Text(
                           'Amount: ${formatCryptoAmount(amount, coin)}',
-                          style: TextStyle(color: kmainWhitecolor, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: kmainWhitecolor,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -351,13 +378,19 @@ class _TransactionSummary extends StatelessWidget {
                       children: [
                         Text(
                           'Fee: ${formatCryptoAmount(fee, coin)}',
-                          style: TextStyle(color: kmainWhitecolor, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: kmainWhitecolor,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
                     Text(
                       'TxID: ${txData['txid'] ?? 'N/A'}',
-                      style: TextStyle(color: kmainWhitecolor, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: kmainWhitecolor,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.start,
@@ -384,7 +417,10 @@ class _TransactionSummary extends StatelessWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: Text('Back to Homepage', style: TextStyle(color: kmainWhitecolor)),
+                          child: Text(
+                            'Back to Homepage',
+                            style: TextStyle(color: kmainWhitecolor),
+                          ),
                         ),
                         ElevatedButton(
                           onPressed: () {
@@ -396,7 +432,10 @@ class _TransactionSummary extends StatelessWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: Text('Share Receipt', style: TextStyle(color: kwhitecolor)),
+                          child: Text(
+                            'Share Receipt',
+                            style: TextStyle(color: kwhitecolor),
+                          ),
                         ),
                       ],
                     ),

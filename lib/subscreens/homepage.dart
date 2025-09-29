@@ -1,4 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:naipay/animations/animatedloader.dart';
@@ -6,10 +5,10 @@ import 'package:naipay/options/sendfundsoption.dart';
 import 'package:naipay/state%20management/pricesbloc/prices_bloc.dart';
 import 'package:naipay/state%20management/fetchdata/bloc/fetchdata_bloc.dart';
 import 'package:naipay/subscreens/learnpage.dart';
+import 'package:naipay/subscreens/swap.dart';
 import 'package:naipay/theme/colors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:naipay/transactionscreens/recievefundscreen.dart';
-import 'package:naipay/transactionscreens/settransactipnpinscreen.dart';
 import 'package:naipay/utils/utils.dart';
 import 'package:intl/intl.dart';
 import 'package:bdk_flutter/bdk_flutter.dart';
@@ -74,7 +73,6 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
     }
   }
 
-  /// Update USDT balance + TRC20 transactions after a transaction
   void updateUsdtAfterTransaction(Map<String, dynamic> updatedWalletInfo) {
     print('Updating USDT with: $updatedWalletInfo');
     setState(() {
@@ -87,21 +85,27 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
           : wallet?['usdtBalances']?.toDouble() ?? 0.0;
 
       usdtBalance = updatedWalletInfo['newBalance'] != null
-          ? double.tryParse(updatedWalletInfo['newBalance'].toString()) ?? usdtBalance
+          ? double.tryParse(updatedWalletInfo['newBalance'].toString()) ??
+                usdtBalance
           : usdtBalance;
 
       wallet['usdtBalances'] = usdtBalance;
 
       // Merge TRC20 transactions from userInfo
-      final newTransactions = updatedWalletInfo['trc20Transactions'] as List<dynamic>? ?? [];
-      final oldTransactions = widget.userInfo?['usdt_transaction_history'] as List<dynamic>? ?? [];
-      final mergedTransactions = [...newTransactions, ...oldTransactions]
-          .whereType<Map<String, dynamic>>()
-          .toList();
+      final newTransactions =
+          updatedWalletInfo['trc20Transactions'] as List<dynamic>? ?? [];
+      final oldTransactions =
+          widget.userInfo?['usdt_transaction_history'] as List<dynamic>? ?? [];
+      final mergedTransactions = [
+        ...newTransactions,
+        ...oldTransactions,
+      ].whereType<Map<String, dynamic>>().toList();
 
       widget.wallets = wallet;
       widget.trc20Transactions = mergedTransactions;
-      print('Merged TRC20 Transactions (count: ${widget.trc20Transactions!.length}): ${widget.trc20Transactions}');
+      print(
+        'Merged TRC20 Transactions (count: ${widget.trc20Transactions!.length}): ${widget.trc20Transactions}',
+      );
     });
   }
 
@@ -115,41 +119,54 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
       body: BlocConsumer<FetchdataBloc, FetchdataState>(
         listener: (context, state) {
           if (state is FetchUsersFailureState && !_hasShownUserErrorSnackBar) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: ${state.message}')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Error: ${state.message}')));
             _hasShownUserErrorSnackBar = true;
           }
           if (state is FetchUsersSuccessState) {
             print('Fetched userInfo: ${state.usersInfo}');
-            print('Fetched usdt_transaction_history (raw): ${state.usersInfo?['usdt_transaction_history']}');
+            print(
+              'Fetched usdt_transaction_history (raw): ${state.usersInfo?['usdt_transaction_history']}',
+            );
             setState(() {
               _pendingOutgoingBtc = 0.0;
               _pendingOutgoingUsdt = 0.0;
               // Safely update trc20Transactions from userInfo
               if (state.usersInfo?['usdt_transaction_history'] != null) {
-                final rawTransactions = state.usersInfo!['usdt_transaction_history'] as List<dynamic>;
+                final rawTransactions =
+                    state.usersInfo!['usdt_transaction_history']
+                        as List<dynamic>;
                 widget.trc20Transactions = rawTransactions
                     .whereType<Map<String, dynamic>>()
                     .toList();
-                print('Updated trc20Transactions from userInfo (count: ${widget.trc20Transactions!.length}): $widget.trc20Transactions');
+                print(
+                  'Updated trc20Transactions from userInfo (count: ${widget.trc20Transactions!.length}): $widget.trc20Transactions',
+                );
               }
             });
           }
         },
         builder: (context, state) {
-          final wallet = (state is FetchUsersSuccessState && state.walletdata != null)
+          final wallet =
+              (state is FetchUsersSuccessState && state.walletdata != null)
               ? state.walletdata
               : widget.wallets;
-          final userinfo = (state is FetchUsersSuccessState && state.usersInfo != null)
+          final userinfo =
+              (state is FetchUsersSuccessState && state.usersInfo != null)
               ? state.usersInfo
               : widget.userInfo;
           // Safely handle transactionUsdt with type checking
-          final rawTransactionUsdt = userinfo?['usdt_transaction_history'] as List<dynamic>? ??
+          final rawTransactionUsdt =
+              userinfo?['usdt_transaction_history'] as List<dynamic>? ??
               widget.trc20Transactions as List<dynamic>?;
-          final transactionUsdt = rawTransactionUsdt?.whereType<Map<String, dynamic>>().toList();
+          final transactionUsdt = rawTransactionUsdt
+              ?.whereType<Map<String, dynamic>>()
+              .toList();
 
-          print('Using transactionUsdt (count: ${transactionUsdt?.length ?? 0}): $transactionUsdt');
+          print(
+            'Using transactionUsdt (count: ${transactionUsdt?.length ?? 0}): $transactionUsdt',
+          );
 
           double balanceBtc = 0.0;
           double usdtBalance = 0.0;
@@ -175,13 +192,17 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
 
           double displayedBtcBalance = balanceBtc - _pendingOutgoingBtc;
           double displayedUsdtBalance = usdtBalance - _pendingOutgoingUsdt;
-          String btcBalanceDisplay = '${displayedBtcBalance.toStringAsFixed(8)} BTC';
-          String usdtBalanceDisplay = '${formatter.format(displayedUsdtBalance)} USDT';
+          String btcBalanceDisplay =
+              '${displayedBtcBalance.toStringAsFixed(8)} BTC';
+          String usdtBalanceDisplay =
+              '${formatter.format(displayedUsdtBalance)} USDT';
 
           List<Map<String, dynamic>> transactions = [];
 
           // Add pending BTC transaction if any
-          if (widget.pendingOutgoingBtc != null && widget.pendingOutgoingBtc! > 0 && widget.address != null) {
+          if (widget.pendingOutgoingBtc != null &&
+              widget.pendingOutgoingBtc! > 0 &&
+              widget.address != null) {
             transactions.add({
               'type': 'send',
               'amount': widget.pendingOutgoingBtc!.toDouble(),
@@ -195,7 +216,9 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
           }
 
           // Add pending USDT transaction if any
-          if (widget.pendingOutgoingUsdt != null && widget.pendingOutgoingUsdt! > 0 && widget.address != null) {
+          if (widget.pendingOutgoingUsdt != null &&
+              widget.pendingOutgoingUsdt! > 0 &&
+              widget.address != null) {
             transactions.add({
               'type': 'send',
               'amount': widget.pendingOutgoingUsdt!.toDouble(),
@@ -214,19 +237,25 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
               (wallet!['transaction_history'] as List<dynamic>).map((tx) {
                 final txDetails = tx as TransactionDetails;
                 final isSend = txDetails.sent > 0;
-                final amountSats = isSend ? txDetails.sent - txDetails.received : txDetails.received;
+                final amountSats = isSend
+                    ? txDetails.sent - txDetails.received
+                    : txDetails.received;
                 final amountBtc = amountSats / 100000000;
                 return {
                   'type': isSend ? 'send' : 'receive',
                   'amount': amountBtc,
                   'currency': 'BTC',
                   'time': txDetails.confirmationTime?.timestamp != null
-                      ? DateTime.fromMillisecondsSinceEpoch(txDetails.confirmationTime!.timestamp * 1000)
+                      ? DateTime.fromMillisecondsSinceEpoch(
+                          txDetails.confirmationTime!.timestamp * 1000,
+                        )
                       : DateTime.now(),
                   'from': isSend ? wallet['bitcoin_address'] : 'Unknown',
                   'to': isSend ? widget.address : wallet['bitcoin_address'],
                   'other_details': 'TxID: ${txDetails.txid}',
-                  'status': txDetails.confirmationTime != null ? 'Confirmed' : 'Pending',
+                  'status': txDetails.confirmationTime != null
+                      ? 'Confirmed'
+                      : 'Pending',
                 };
               }).toList(),
             );
@@ -234,28 +263,39 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
 
           // USDT transactions from userInfo (only total amount, no fee breakdown)
           if (transactionUsdt != null && transactionUsdt.isNotEmpty) {
-            print('Processing ${transactionUsdt.length} USDT transactions from userInfo');
+            print(
+              'Processing ${transactionUsdt.length} USDT transactions from userInfo',
+            );
             transactions.addAll(
               transactionUsdt.map((tx) {
                 final t = tx as Map<String, dynamic>;
                 final amount = t['amount'] is int
                     ? (t['amount'] as int).toDouble()
                     : t['amount'] is double
-                        ? t['amount'] as double
-                        : double.tryParse(t['amount']?.toString() ?? '0') ?? 0.0;
+                    ? t['amount'] as double
+                    : double.tryParse(t['amount']?.toString() ?? '0') ?? 0.0;
                 return {
-                  'type': t['type']?.toString() ?? (t['from'] == wallet?['usdt_address'] ? 'send' : 'receive'),
+                  'type':
+                      t['type']?.toString() ??
+                      (t['from'] == wallet?['usdt_address']
+                          ? 'send'
+                          : 'receive'),
                   'amount': amount, // Only the base amount, no fee separation
                   'currency': t['currency']?.toString() ?? 'USDT',
                   'time': t['time'] is String
                       ? DateTime.tryParse(t['time']) ?? DateTime.now()
                       : t['time'] is DateTime
-                          ? t['time']
-                          : DateTime.now(),
+                      ? t['time']
+                      : DateTime.now(),
                   'from': t['from']?.toString() ?? 'Unknown',
                   'to': t['to']?.toString() ?? 'Unknown',
-                  'other_details': t['txId']?.toString() ?? t['other_details']?.toString() ?? 'N/A',
-                  'status': t['status']?.toString() ?? 'Pending', // Updated status handling
+                  'other_details':
+                      t['txId']?.toString() ??
+                      t['other_details']?.toString() ??
+                      'N/A',
+                  'status':
+                      t['status']?.toString() ??
+                      'Pending', // Updated status handling
                 };
               }).toList(),
             );
@@ -265,7 +305,9 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
 
           // Sort transactions newest first
           transactions.sort((a, b) => b['time'].compareTo(a['time']));
-          print('Merged Transactions (count: ${transactions.length}): $transactions');
+          print(
+            'Merged Transactions (count: ${transactions.length}): $transactions',
+          );
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -274,104 +316,123 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
               _hasShownPriceErrorSnackBar = false;
               _hasShownUserErrorSnackBar = false;
 
-              context.read<FetchdataBloc>().add(FetchUserDataEvent(email: userinfo?['email'] ?? widget.email));
+              context.read<FetchdataBloc>().add(
+                FetchUserDataEvent(email: userinfo?['email'] ?? widget.email),
+              );
               context.read<PricesBloc>().add(FetchPricesEvent());
 
               try {
                 print('Starting refresh: ${DateTime.now()}');
                 await Future.wait([
-                  context.read<FetchdataBloc>().stream.firstWhere(
-                        (state) => state is FetchUsersSuccessState || state is FetchUsersFailureState,
+                  context
+                      .read<FetchdataBloc>()
+                      .stream
+                      .firstWhere(
+                        (state) =>
+                            state is FetchUsersSuccessState ||
+                            state is FetchUsersFailureState,
                         orElse: () {
                           print('FetchdataBloc timeout');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('User data fetch timed out')),
-                          );
+                         
                           return FetchUsersFailureState(message: 'Timeout');
                         },
-                      ).then((state) {
+                      )
+                      .then((state) {
                         if (state is FetchUsersSuccessState) {
-                          print('Fetched usdt_transaction_history on refresh (raw): ${state.usersInfo?['usdt_transaction_history']}');
+                          print(
+                            'Fetched usdt_transaction_history on refresh (raw): ${state.usersInfo?['usdt_transaction_history']}',
+                          );
                         } else if (state is FetchUsersFailureState) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Fetch failed: ${state.message}')),
+                            SnackBar(
+                              content: Text('Fetch failed: ${state.message}'),
+                            ),
                           );
                         }
-                      }).timeout(
+                      })
+                      .timeout(
                         const Duration(seconds: 5),
                         onTimeout: () {
                           print('FetchdataBloc timeout');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('User data fetch timed out')),
-                          );
+                         
                         },
                       ),
-                  context.read<PricesBloc>().stream.firstWhere(
-                        (state) => state is PricesLoadedSuccessState || state is PricesErrorState,
+                  context
+                      .read<PricesBloc>()
+                      .stream
+                      .firstWhere(
+                        (state) =>
+                            state is PricesLoadedSuccessState ||
+                            state is PricesErrorState,
                         orElse: () {
                           print('PricesBloc timeout');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Price fetch timed out')),
-                          );
+
                           return PricesErrorState('Timeout');
                         },
-                      ).then((state) {
+                      )
+                      .then((state) {
                         if (state is PricesErrorState) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Price fetch failed: ${state.message}')),
+                            SnackBar(
+                              content: Text(
+                                'Price fetch failed: ${state.message}',
+                              ),
+                            ),
                           );
                         }
-                      }).timeout(
+                      })
+                      .timeout(
                         const Duration(seconds: 5),
                         onTimeout: () {
                           print('PricesBloc timeout');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Price fetch timed out')),
-                          );
                         },
                       ),
                 ]);
                 print('Refresh completed: ${DateTime.now()}');
               } catch (e) {
                 print('Refresh error: $e');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Refresh failed: $e')),
-                );
+               
               }
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 45),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 45,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    customButtonContainer(
+                    customContainer(
                       60,
                       size.width,
                       BoxDecoration(borderRadius: BorderRadius.circular(12)),
                       Row(
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: CircleAvatar(
-                              foregroundColor: kmainWhitecolor,
-                              child: IconButton(
-                                onPressed: () {},
-                                icon: const Icon(Icons.add_a_photo_outlined),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 5),
+                                child: IconButton(
+                                  onPressed: () {},
+                                  icon:  Icon(Icons.menu,color: kwhitecolor,size: 25,),
+                                ),
                               ),
-                              radius: 25,
-                              backgroundColor: kwhitecolor,
-                            ),
+                            ],
                           ),
                           Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Padding(
                                 padding: const EdgeInsets.only(top: 6),
                                 child: SizedBox(
                                   width: 130,
                                   child: Text(
-                                    userinfo != null ? 'Hi, ${userinfo['name']}' : 'Hi, .......',
+                                    userinfo != null
+                                        ? 'Welcome!'
+                                        : 'Welcome!',
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       color: kmainWhitecolor,
@@ -381,48 +442,49 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                   ),
                                 ),
                               ),
-                              Text(
-                                'Welcome!',
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: kmainWhitecolor,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500,
+                                Padding(
+                                padding: const EdgeInsets.only(top: 0),
+                                child: SizedBox(
+                                  width: 130,
+                                  child: Text(
+                                    userinfo != null
+                                        ? '${userinfo['name']}'
+                                        : '.........',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: kmainWhitecolor,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
                                 ),
                               ),
+                             
                             ],
                           ),
+                         
                           Padding(
-                            padding: const EdgeInsets.only(left: 50),
+                            padding: const EdgeInsets.only(left: 120),
                             child: IconButton(
                               onPressed: () {},
                               icon: Icon(
-                                Icons.qr_code_2,
+                                Icons.notifications,
                                 size: 30,
                                 color: kmainWhitecolor,
                               ),
                             ),
                           ),
-                          IconButton(
-                            onPressed: () {},
-                            icon: Icon(
-                              Icons.notifications,
-                              size: 30,
-                              color: kmainWhitecolor,
-                            ),
-                          ),
                         ],
                       ),
-                      () {},
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 40),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         SizedBox(
-                          height: 147,
+                          height: 150,
                           child: customContainer(
-                            size.height / 5.3,
+                            250,
                             350,
                             BoxDecoration(
                               boxShadow: [
@@ -434,120 +496,188 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                 ),
                               ],
                               color: kmainBackgroundcolor,
-                              borderRadius: BorderRadius.only(topLeft: Radius.circular(20)),
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(20),
+                                topRight: Radius.circular(20),
+                              ),
                             ),
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    IconButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          visble = !visble;
-                                        });
-                                      },
-                                      icon: visble
-                                          ? Icon(Icons.visibility, color: ksubbackgroundcolor)
-                                          : Icon(Icons.visibility_off, color: ksubbackgroundcolor),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 12, top: 11),
-                                      child: Text(
-                                        'Bitcoin Balance:',
-                                        style: TextStyle(fontSize: 15, color: kmainWhitecolor),
+                            SingleChildScrollView(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      IconButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            visble = !visble;
+                                          });
+                                        },
+                                        icon: visble
+                                            ? Icon(
+                                                Icons.visibility,
+                                                color: ksubbackgroundcolor,
+                                              )
+                                            : Icon(
+                                                Icons.visibility_off,
+                                                color: ksubbackgroundcolor,
+                                              ),
                                       ),
-                                    ),
-                                    if (state is FetchUsersLoadingState && widget.wallets == null)
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
                                       Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: AnimatedLoadingDots(),
-                                      )
-                                    else if (wallet != null)
-                                      Flexible(
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(top: 28, right: 12),
-                                          child: BlocBuilder<PricesBloc, PricesState>(
-                                            builder: (context, priceState) {
-                                              double btcPriceInUsdt = 0.0;
-                                              Widget usdtBalanceDisplay = AnimatedLoadingDots();
-
-                                              if (priceState is PricesLoadedSuccessState) {
-                                                btcPriceInUsdt =
-                                                    priceState.prices['BTC']?['price']?.toDouble() ?? 0.0;
-                                                double usdtEquivalent = displayedBtcBalance * btcPriceInUsdt;
-                                                usdtBalanceDisplay = Text(
-                                                  displayedBtcBalance == 0.0
-                                                      ? '0.00 USDT'
-                                                      : '${formatter.format(usdtEquivalent)} USDT',
-                                                  style: TextStyle(fontSize: 10, color: kwhitecolor),
-                                                  textAlign: TextAlign.end,
-                                                );
-                                              } else if (priceState is PricesLoadingState) {
-                                                usdtBalanceDisplay = AnimatedLoadingDots();
-                                              } else if (priceState is PricesErrorState &&
-                                                  !_hasShownPriceErrorSnackBar) {
-                                                usdtBalanceDisplay = Text(
-                                                  'Price unavailable',
-                                                  style: TextStyle(fontSize: 10, color: kwhitecolor),
-                                                  textAlign: TextAlign.end,
-                                                );
-                                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        priceState.message.contains('429')
-                                                            ? 'Rate limit exceeded. Please try again later.'
-                                                            : 'Failed to load prices: ${priceState.message}',
-                                                      ),
-                                                    ),
-                                                  );
-                                                  _hasShownPriceErrorSnackBar = true;
-                                                });
-                                              }
-
-                                              return Column(
-                                                mainAxisAlignment: MainAxisAlignment.start,
-                                                crossAxisAlignment: CrossAxisAlignment.end,
-                                                children: [
-                                                  SizedBox(
-                                                    width: 250,
-                                                    child: Text(
-                                                      visble ? btcBalanceDisplay : '*********',
-                                                      style: TextStyle(fontSize: 20, color: kmainWhitecolor),
-                                                      textAlign: TextAlign.end,
-                                                    ),
-                                                  ),
-                                                  visble
-                                                      ? Padding(
-                                                          padding: const EdgeInsets.only(bottom: 20),
-                                                          child: usdtBalanceDisplay,
-                                                        )
-                                                      : Text(
-                                                          '*********',
-                                                          style: TextStyle(fontSize: 10, color: kwhitecolor),
-                                                          textAlign: TextAlign.end,
-                                                        ),
-                                                ],
-                                              );
-                                            },
+                                        padding: const EdgeInsets.only(
+                                          left: 12,
+                                          top: 11,
+                                        ),
+                                        child: Text(
+                                          'Bitcoin Balance:',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            color: kmainWhitecolor,
                                           ),
                                         ),
-                                      )
-                                    else
-                                      Text(
-                                        '---',
-                                        style: TextStyle(fontSize: 50, color: kwhitecolor),
                                       ),
-                                  ],
-                                ),
-                              ],
+                                      if (state is FetchUsersLoadingState &&
+                                          widget.wallets == null)
+                                        Padding(
+                                          padding: const EdgeInsets.all(2.0),
+                                          child: AnimatedLoadingDots(),
+                                        )
+                                      else if (wallet != null)
+                                        Flexible(
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 28,
+                                              right: 12,
+                                            ),
+                                            child: BlocBuilder<PricesBloc, PricesState>(
+                                              builder: (context, priceState) {
+                                                double btcPriceInUsdt = 0.0;
+                                                Widget usdtBalanceDisplay =
+                                                    AnimatedLoadingDots();
+
+                                                if (priceState
+                                                    is PricesLoadedSuccessState) {
+                                                  btcPriceInUsdt =
+                                                      priceState
+                                                          .prices['BTC']?['price']
+                                                          ?.toDouble() ??
+                                                      0.0;
+                                                  double usdtEquivalent =
+                                                      displayedBtcBalance *
+                                                      btcPriceInUsdt;
+                                                  usdtBalanceDisplay = Text(
+                                                    displayedBtcBalance == 0.0
+                                                        ? '0.00 USDT'
+                                                        : '${formatter.format(usdtEquivalent)} USDT',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: kwhitecolor,
+                                                    ),
+                                                    textAlign: TextAlign.end,
+                                                  );
+                                                } else if (priceState
+                                                    is PricesLoadingState) {
+                                                  usdtBalanceDisplay =
+                                                      AnimatedLoadingDots();
+                                                } else if (priceState
+                                                        is PricesErrorState &&
+                                                    !_hasShownPriceErrorSnackBar) {
+                                                  usdtBalanceDisplay = Text(
+                                                    'Price unavailable',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: kwhitecolor,
+                                                    ),
+                                                    textAlign: TextAlign.end,
+                                                  );
+                                                  WidgetsBinding.instance
+                                                      .addPostFrameCallback((
+                                                        _,
+                                                      ) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              priceState.message
+                                                                      .contains(
+                                                                        '429',
+                                                                      )
+                                                                  ? 'Rate limit exceeded. Please try again later.'
+                                                                  : 'Failed to load prices: ${priceState.message}',
+                                                            ),
+                                                          ),
+                                                        );
+                                                        _hasShownPriceErrorSnackBar =
+                                                            true;
+                                                      });
+                                                }
+
+                                                return Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.end,
+                                                  children: [
+                                                    SizedBox(
+                                                      width: 250,
+                                                      child: Text(
+                                                        visble
+                                                            ? btcBalanceDisplay
+                                                            : '*********',
+                                                        style: TextStyle(
+                                                          fontSize: 20,
+                                                          color:
+                                                              kmainWhitecolor,
+                                                        ),
+                                                        textAlign:
+                                                            TextAlign.end,
+                                                      ),
+                                                    ),
+                                                    visble
+                                                        ? Padding(
+                                                            padding:
+                                                                const EdgeInsets.only(
+                                                                  bottom: 20,
+                                                                ),
+                                                            child:
+                                                                usdtBalanceDisplay,
+                                                          )
+                                                        : Text(
+                                                            '*********',
+                                                            style: TextStyle(
+                                                              fontSize: 10,
+                                                              color:
+                                                                  kwhitecolor,
+                                                            ),
+                                                            textAlign:
+                                                                TextAlign.end,
+                                                          ),
+                                                  ],
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        )
+                                      else
+                                        Text(
+                                          '---',
+                                          style: TextStyle(
+                                            fontSize: 50,
+                                            color: kwhitecolor,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -555,7 +685,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                     ),
                     Center(
                       child: customContainer(
-                        size.height / 15,
+                        size.height / 16,
                         350,
                         BoxDecoration(
                           boxShadow: [
@@ -567,7 +697,10 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                             ),
                           ],
                           color: kmainBackgroundcolor,
-                          borderRadius: BorderRadius.only(bottomRight: Radius.circular(20)),
+                          borderRadius: BorderRadius.only(
+                            bottomRight: Radius.circular(20),
+                            bottomLeft: Radius.circular(20),
+                          ),
                         ),
                         Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -579,10 +712,14 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                   padding: const EdgeInsets.only(left: 10),
                                   child: Text(
                                     'Tether Balance:',
-                                    style: TextStyle(fontSize: 15, color: kmainWhitecolor),
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: kmainWhitecolor,
+                                    ),
                                   ),
                                 ),
-                                if (state is FetchUsersLoadingState && widget.wallets == null)
+                                if (state is FetchUsersLoadingState &&
+                                    widget.wallets == null)
                                   AnimatedLoadingDots()
                                 else
                                   Padding(
@@ -590,11 +727,16 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                     child: visble
                                         ? Text(
                                             "${formatter.format(displayedUsdtBalance)} USDT",
-                                            style: TextStyle(fontSize: 20, color: kmainWhitecolor),
+                                            style: TextStyle(
+                                              fontSize: 20,
+                                              color: kmainWhitecolor,
+                                            ),
                                           )
                                         : Text(
                                             '********',
-                                            style: TextStyle(color: kmainWhitecolor),
+                                            style: TextStyle(
+                                              color: kmainWhitecolor,
+                                            ),
                                           ),
                                   ),
                               ],
@@ -619,7 +761,54 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                     onTap: () {
                                       Navigator.push(
                                         context,
-                                        MaterialPageRoute(builder: (context) => Learnpage()),
+                                        PageRouteBuilder(
+                                          transitionDuration: const Duration(
+                                            milliseconds: 500,
+                                          ), // Slightly slower for dramatic effect
+                                          pageBuilder:
+                                              (
+                                                context,
+                                                animation,
+                                                secondaryAnimation,
+                                              ) => Learnpage(),
+                                          transitionsBuilder:
+                                              (
+                                                context,
+                                                animation,
+                                                secondaryAnimation,
+                                                child,
+                                              ) {
+                                                const curve = Curves
+                                                    .easeOutBack; // Smooth "pop" feeling
+
+                                                // Scale animation (zoom in)
+                                                final scaleTween =
+                                                    Tween<double>(
+                                                      begin: 0.8,
+                                                      end: 1.0,
+                                                    ).chain(
+                                                      CurveTween(curve: curve),
+                                                    );
+
+                                                // Fade animation
+                                                final fadeTween = Tween<double>(
+                                                  begin: 0.0,
+                                                  end: 1.0,
+                                                );
+
+                                                return FadeTransition(
+                                                  opacity: animation.drive(
+                                                    fadeTween,
+                                                  ),
+                                                  child: ScaleTransition(
+                                                    scale: animation.drive(
+                                                      scaleTween,
+                                                    ),
+                                                    child: child,
+                                                  ),
+                                                );
+                                              },
+                                        ),
                                       );
                                     },
                                     child: CircleAvatar(
@@ -648,7 +837,68 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                 children: [
                                   InkWell(
                                     onTap: () {
-                                      print('USDT transactions from userInfo: ${widget.userInfo?['usdt_transaction_history']}');
+                                      Navigator.push(
+                                        context,
+                                        PageRouteBuilder(
+                                          transitionDuration: const Duration(
+                                            milliseconds: 400,
+                                          ), // Adjust speed
+                                          pageBuilder:
+                                              (
+                                                context,
+                                                animation,
+                                                secondaryAnimation,
+                                              ) => SwapPage(
+                                                initialcoin: "BTC",
+                                                btcbalance: displayedBtcBalance,
+                                                usdtbalance:
+                                                    displayedUsdtBalance,
+                                                    userEmail: widget.userInfo?['email'],
+                                                    userinfo: widget.userInfo ??{}
+                                              ),
+                                          transitionsBuilder:
+                                              (
+                                                context,
+                                                animation,
+                                                secondaryAnimation,
+                                                child,
+                                              ) {
+                                                const beginOffset = Offset(
+                                                  1.0,
+                                                  0.0,
+                                                ); // Slide from right
+                                                const endOffset = Offset.zero;
+                                                const curve = Curves.easeInOut;
+
+                                                // Slide animation
+                                                final offsetTween =
+                                                    Tween(
+                                                      begin: beginOffset,
+                                                      end: endOffset,
+                                                    ).chain(
+                                                      CurveTween(curve: curve),
+                                                    );
+
+                                                // Fade animation
+                                                final fadeTween = Tween<double>(
+                                                  begin: 0.0,
+                                                  end: 1.0,
+                                                );
+
+                                                return SlideTransition(
+                                                  position: animation.drive(
+                                                    offsetTween,
+                                                  ),
+                                                  child: FadeTransition(
+                                                    opacity: animation.drive(
+                                                      fadeTween,
+                                                    ),
+                                                    child: child,
+                                                  ),
+                                                );
+                                              },
+                                        ),
+                                      );
                                     },
                                     child: CircleAvatar(
                                       radius: 25,
@@ -677,7 +927,6 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                 children: [
                                   InkWell(
                                     onTap: () async {
-                                      print('Send button tapped');
                                       final result = await showDialog(
                                         context: context,
                                         builder: (context) => sendfundsoption(
@@ -689,7 +938,8 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                           widget.email,
                                         ),
                                       );
-                                      if (result != null && result is Map<String, dynamic>) {
+                                      if (result != null &&
+                                          result is Map<String, dynamic>) {
                                         updateUsdtAfterTransaction(result);
                                       }
                                     },
@@ -723,10 +973,11 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => Recievefundscreen(
-                                            walletData: wallet ?? {},
-                                            userInfo: userinfo ?? {},
-                                          ),
+                                          builder: (context) =>
+                                              Recievefundscreen(
+                                                walletData: wallet ?? {},
+                                                userInfo: userinfo ?? {},
+                                              ),
                                         ),
                                       );
                                     },
@@ -790,7 +1041,8 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Row(
                                       children: [
@@ -801,7 +1053,10 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                           width: 60,
                                         ),
                                         Padding(
-                                          padding: const EdgeInsets.only(left: 1, top: 4),
+                                          padding: const EdgeInsets.only(
+                                            left: 1,
+                                            top: 4,
+                                          ),
                                           child: Text(
                                             'Bitcoin Price:',
                                             style: TextStyle(
@@ -813,10 +1068,15 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                       ],
                                     ),
                                     Padding(
-                                      padding: const EdgeInsets.only(right: 8, top: 20),
-                                      child: priceState is PricesLoadedSuccessState
+                                      padding: const EdgeInsets.only(
+                                        right: 8,
+                                        top: 20,
+                                      ),
+                                      child:
+                                          priceState is PricesLoadedSuccessState
                                           ? Column(
-                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
                                               children: [
                                                 Text(
                                                   '\$${formatter.format(priceState.prices['BTC']?['price'] ?? 0.0)}',
@@ -831,17 +1091,26 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                     Text(
                                                       '${(priceState.prices['BTC']?['change_24h'] ?? 0.0).toStringAsFixed(2)}%',
                                                       style: TextStyle(
-                                                        color: (priceState.prices['BTC']?['change_24h'] ?? 0.0) >= 0
+                                                        color:
+                                                            (priceState.prices['BTC']?['change_24h'] ??
+                                                                    0.0) >=
+                                                                0
                                                             ? Colors.green
                                                             : Colors.red,
                                                         fontSize: 14,
                                                       ),
                                                     ),
                                                     Icon(
-                                                      (priceState.prices['BTC']?['change_24h'] ?? 0.0) >= 0
+                                                      (priceState.prices['BTC']?['change_24h'] ??
+                                                                  0.0) >=
+                                                              0
                                                           ? Icons.arrow_upward
-                                                          : Icons.arrow_downward,
-                                                      color: (priceState.prices['BTC']?['change_24h'] ?? 0.0) >= 0
+                                                          : Icons
+                                                                .arrow_downward,
+                                                      color:
+                                                          (priceState.prices['BTC']?['change_24h'] ??
+                                                                  0.0) >=
+                                                              0
                                                           ? Colors.green
                                                           : Colors.red,
                                                       size: 20,
@@ -850,39 +1119,54 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                 ),
                                                 Text(
                                                   'Rank: ${priceState.prices['BTC']?['rank'] ?? 'N/A'}',
-                                                  style: TextStyle(color: kmainWhitecolor, fontSize: 12),
+                                                  style: TextStyle(
+                                                    color: kmainWhitecolor,
+                                                    fontSize: 12,
+                                                  ),
                                                 ),
                                               ],
                                             )
                                           : priceState is PricesErrorState
-                                              ? Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                                  children: [
-                                                    Text(
-                                                      'Error: Price unavailable',
-                                                      style: TextStyle(color: Colors.red, fontSize: 14),
-                                                    ),
-                                                    if (!_hasShownPriceErrorSnackBar)
-                                                      Builder(
-                                                        builder: (context) {
-                                                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                                                            ScaffoldMessenger.of(context).showSnackBar(
-                                                              SnackBar(
-                                                                content: Text(
-                                                                  priceState.message.contains('429')
-                                                                      ? 'Rate limit exceeded. Please try again later.'
-                                                                      : 'Failed to load prices: ${priceState.message}',
-                                                                ),
-                                                              ),
-                                                            );
-                                                            _hasShownPriceErrorSnackBar = true;
-                                                          });
-                                                          return SizedBox.shrink();
-                                                        },
-                                                      ),
-                                                  ],
-                                                )
-                                              : AnimatedLoadingDots(),
+                                          ? Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  'Error: Price unavailable',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                if (!_hasShownPriceErrorSnackBar)
+                                                  Builder(
+                                                    builder: (context) {
+                                                      WidgetsBinding.instance.addPostFrameCallback((
+                                                        _,
+                                                      ) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              priceState.message
+                                                                      .contains(
+                                                                        '429',
+                                                                      )
+                                                                  ? 'Rate limit exceeded. Please try again later.'
+                                                                  : 'Failed to load prices: ${priceState.message}',
+                                                            ),
+                                                          ),
+                                                        );
+                                                        _hasShownPriceErrorSnackBar =
+                                                            true;
+                                                      });
+                                                      return SizedBox.shrink();
+                                                    },
+                                                  ),
+                                              ],
+                                            )
+                                          : AnimatedLoadingDots(),
                                     ),
                                   ],
                                 ),
@@ -906,7 +1190,8 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Row(
                                       children: [
@@ -928,10 +1213,15 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                       ],
                                     ),
                                     Padding(
-                                      padding: const EdgeInsets.only(right: 8, top: 20),
-                                      child: priceState is PricesLoadedSuccessState
+                                      padding: const EdgeInsets.only(
+                                        right: 8,
+                                        top: 20,
+                                      ),
+                                      child:
+                                          priceState is PricesLoadedSuccessState
                                           ? Column(
-                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
                                               children: [
                                                 Text(
                                                   '\$${formatter.format(priceState.prices['USDT']?['price'] ?? 0.0)}',
@@ -946,17 +1236,26 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                     Text(
                                                       '${(priceState.prices['USDT']?['change_24h'] ?? 0.0).toStringAsFixed(2)}%',
                                                       style: TextStyle(
-                                                        color: (priceState.prices['USDT']?['change_24h'] ?? 0.0) >= 0
+                                                        color:
+                                                            (priceState.prices['USDT']?['change_24h'] ??
+                                                                    0.0) >=
+                                                                0
                                                             ? Colors.green
                                                             : Colors.red,
                                                         fontSize: 14,
                                                       ),
                                                     ),
                                                     Icon(
-                                                      (priceState.prices['USDT']?['change_24h'] ?? 0.0) >= 0
+                                                      (priceState.prices['USDT']?['change_24h'] ??
+                                                                  0.0) >=
+                                                              0
                                                           ? Icons.arrow_upward
-                                                          : Icons.arrow_downward,
-                                                      color: (priceState.prices['USDT']?['change_24h'] ?? 0.0) >= 0
+                                                          : Icons
+                                                                .arrow_downward,
+                                                      color:
+                                                          (priceState.prices['USDT']?['change_24h'] ??
+                                                                  0.0) >=
+                                                              0
                                                           ? Colors.green
                                                           : Colors.red,
                                                       size: 20,
@@ -965,39 +1264,54 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                 ),
                                                 Text(
                                                   'Rank: ${priceState.prices['USDT']?['rank'] ?? 'N/A'}',
-                                                  style: TextStyle(color: kmainWhitecolor, fontSize: 12),
+                                                  style: TextStyle(
+                                                    color: kmainWhitecolor,
+                                                    fontSize: 12,
+                                                  ),
                                                 ),
                                               ],
                                             )
                                           : priceState is PricesErrorState
-                                              ? Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                                  children: [
-                                                    Text(
-                                                      'Error: Price unavailable',
-                                                      style: TextStyle(color: Colors.red, fontSize: 14),
-                                                    ),
-                                                    if (!_hasShownPriceErrorSnackBar)
-                                                      Builder(
-                                                        builder: (context) {
-                                                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                                                            ScaffoldMessenger.of(context).showSnackBar(
-                                                              SnackBar(
-                                                                content: Text(
-                                                                  priceState.message.contains('429')
-                                                                      ? 'Rate limit exceeded. Please try again later.'
-                                                                      : 'Failed to load prices: ${priceState.message}',
-                                                                ),
-                                                              ),
-                                                            );
-                                                            _hasShownPriceErrorSnackBar = true;
-                                                          });
-                                                          return SizedBox.shrink();
-                                                        },
-                                                      ),
-                                                  ],
-                                                )
-                                              : AnimatedLoadingDots(),
+                                          ? Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  'Error: Price unavailable',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                if (!_hasShownPriceErrorSnackBar)
+                                                  Builder(
+                                                    builder: (context) {
+                                                      WidgetsBinding.instance.addPostFrameCallback((
+                                                        _,
+                                                      ) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              priceState.message
+                                                                      .contains(
+                                                                        '429',
+                                                                      )
+                                                                  ? 'Rate limit exceeded. Please try again later.'
+                                                                  : 'Failed to load prices: ${priceState.message}',
+                                                            ),
+                                                          ),
+                                                        );
+                                                        _hasShownPriceErrorSnackBar =
+                                                            true;
+                                                      });
+                                                      return SizedBox.shrink();
+                                                    },
+                                                  ),
+                                              ],
+                                            )
+                                          : AnimatedLoadingDots(),
                                     ),
                                   ],
                                 ),
@@ -1015,11 +1329,17 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                         children: [
                           Text(
                             'Transaction History:',
-                            style: TextStyle(color: kmainWhitecolor, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: kmainWhitecolor,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           Text(
                             'View more',
-                            style: TextStyle(color: kmainWhitecolor, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: kmainWhitecolor,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
@@ -1033,157 +1353,187 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                         boxShadow: [
                           BoxShadow(
                             blurRadius: 4,
-                            blurStyle: BlurStyle.solid,
+                            blurStyle: BlurStyle.outer,
                             spreadRadius: 0.9,
                             color: kwhitecolor,
                           ),
                         ],
                       ),
-                      child: state is FetchUsersLoadingState && widget.wallets == null && transactionUsdt == null
+                      child:
+                          state is FetchUsersLoadingState &&
+                              widget.wallets == null &&
+                              transactionUsdt == null
                           ? Center(child: AnimatedLoadingDots())
                           : transactions.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    'No recent transactions yet',
-                                    style: TextStyle(color: kmainWhitecolor),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  physics: const AlwaysScrollableScrollPhysics(),
-                                  itemCount: transactions.length,
-                                  itemBuilder: (context, index) {
-                                    final tx = transactions[index];
-                                    final isSend = tx['type'] == 'send';
-                                    final amount = tx['amount'] as double? ?? 0.0;
-                                    final currency = tx['currency'] ?? 'Unknown';
-                                    final time = tx['time'] as DateTime? ?? DateTime.now();
-                                    final formattedTime = DateFormat('MMM dd, yyyy - HH:mm').format(time);
-                                    final status = tx['status'] ?? 'Unknown';
+                          ? Center(
+                              child: Text(
+                                'No recent transactions yet',
+                                style: TextStyle(color: kmainWhitecolor),
+                              ),
+                            )
+                          : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: transactions.length,
+                              itemBuilder: (context, index) {
+                                final tx = transactions[index];
+                                final isSend = tx['type'] == 'send';
+                                final amount = tx['amount'] as double? ?? 0.0;
+                                final currency = tx['currency'] ?? 'Unknown';
+                                final time =
+                                    tx['time'] as DateTime? ?? DateTime.now();
+                                final formattedTime = DateFormat(
+                                  'MMM dd, yyyy - HH:mm',
+                                ).format(time);
+                                final status = tx['status'] ?? 'Unknown';
 
-                                    // Display only the total amount for USDT (no fee breakdown)
-                                    final amountDisplay = currency == 'BTC'
-                                        ? '${amount.toStringAsFixed(8)} BTC'
-                                        : currency == 'USDT'
-                                            ? '${formatter.format(amount)} $currency' // Only base amount for USDT
-                                            : amount == 0.0
-                                                ? 'Amount unavailable'
-                                                : '${formatter.format(amount)} $currency';
+                                // Display only the total amount for USDT (no fee breakdown)
+                                final amountDisplay = currency == 'BTC'
+                                    ? '${amount.toStringAsFixed(8)} BTC'
+                                    : currency == 'USDT'
+                                    ? '${formatter.format(amount)} $currency' // Only base amount for USDT
+                                    : amount == 0.0
+                                    ? 'Amount unavailable'
+                                    : '${formatter.format(amount)} $currency';
 
-                                    return Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: InkWell(
-                                        onTap: () {
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) => AlertDialog(
-                                              title: Text('${tx['type'].toUpperCase()} $currency Transaction'),
-                                              content: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text('Amount: $amountDisplay'),
-                                                  Text('Currency: $currency'),
-                                                  Text(
-                                                    'Status: $status',
-                                                    style: TextStyle(
-                                                      color: status == 'Confirmed'
-                                                          ? Colors.green
-                                                          : status == 'Pending'
-                                                              ? Colors.yellow
-                                                              : Colors.red,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  Text('From: ${tx['from'] ?? 'N/A'}'),
-                                                  Text('To: ${tx['to'] ?? 'N/A'}'),
-                                                  Text('Time: $formattedTime'),
-                                                  Text('Other Details: ${tx['other_details'] ?? 'N/A'}'),
-                                                ],
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.pop(context),
-                                                  child: const Text('Close'),
+                                return Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: InkWell(
+                                    onTap: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: Text(
+                                            '${tx['type'].toUpperCase()} $currency Transaction',
+                                          ),
+                                          content: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Amount: $amountDisplay'),
+                                              Text('Currency: $currency'),
+                                              Text(
+                                                'Status: $status',
+                                                style: TextStyle(
+                                                  color: status == 'Confirmed'
+                                                      ? Colors.green
+                                                      : status == 'Pending'
+                                                      ? Colors.yellow
+                                                      : Colors.red,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
-                                              ],
-                                            ),
-                                          );
-                                        },
-                                        child: customContainer(
-                                          60,
-                                          size.width,
-                                          BoxDecoration(
-                                            boxShadow: [
-                                              BoxShadow(
-                                                blurRadius: 4,
-                                                blurStyle: BlurStyle.solid,
-                                                spreadRadius: 0.9,
-                                                color: kwhitecolor,
+                                              ),
+                                              Text(
+                                                'From: ${tx['from'] ?? 'N/A'}',
+                                              ),
+                                              Text('To: ${tx['to'] ?? 'N/A'}'),
+                                              Text('Time: $formattedTime'),
+                                              Text(
+                                                'Other Details: ${tx['other_details'] ?? 'N/A'}',
                                               ),
                                             ],
-                                            color: kmainBackgroundcolor,
-                                            borderRadius: BorderRadius.circular(20),
                                           ),
-                                          Row(
-                                            children: [
-                                              Padding(
-                                                padding: const EdgeInsets.all(8.0),
-                                                child: CircleAvatar(
-                                                  backgroundColor: kmainWhitecolor,
-                                                  child: Icon(
-                                                    isSend ? Icons.arrow_upward : Icons.arrow_downward,
-                                                    color: isSend ? Colors.red : Colors.green,
-                                                    size: 30,
-                                                  ),
-                                                ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: const Text('Close'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                    child: customContainer(
+                                      60,
+                                      size.width,
+                                      BoxDecoration(
+                                        color: const Color.fromARGB(
+                                          255,
+                                          11,
+                                          6,
+                                          47,
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      Row(
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: CircleAvatar(
+                                              backgroundColor: kmainWhitecolor,
+                                              child: Icon(
+                                                isSend
+                                                    ? Icons.arrow_upward
+                                                    : Icons.arrow_downward,
+                                                color: isSend
+                                                    ? Colors.red
+                                                    : Colors.green,
+                                                size: 30,
                                               ),
-                                              const SizedBox(width: 16),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
                                                   children: [
-                                                    Row(
-                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                      children: [
-                                                        Text(
-                                                          amountDisplay,
-                                                          style: const TextStyle(
-                                                            fontSize: 16,
-                                                            fontWeight: FontWeight.bold,
-                                                            color: Colors.white,
-                                                          ),
-                                                        ),
-                                                        Padding(
-                                                          padding: const EdgeInsets.only(top: 10, right: 15, left: 10),
-                                                          child: Text(
-                                                            '$status',
-                                                            style: TextStyle(
-                                                              fontSize: 12,
-                                                              color: status == 'Confirmed'
-                                                                  ? Colors.green
-                                                                  : status == 'Pending'
-                                                                      ? Colors.yellow
-                                                                      : Colors.red,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
                                                     Text(
-                                                      '$formattedTime',
-                                                      style: TextStyle(color: kmainWhitecolor),
+                                                      amountDisplay,
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                            top: 10,
+                                                            right: 15,
+                                                            left: 10,
+                                                          ),
+                                                      child: Text(
+                                                        '$status',
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          color:
+                                                              status ==
+                                                                  'Confirmed'
+                                                              ? Colors.green
+                                                              : status ==
+                                                                    'Pending'
+                                                              ? Colors.yellow
+                                                              : Colors.red,
+                                                        ),
+                                                      ),
                                                     ),
                                                   ],
                                                 ),
-                                              ),
-                                            ],
+                                                Text(
+                                                  '$formattedTime',
+                                                  style: TextStyle(
+                                                    color: kmainWhitecolor,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
+                                        ],
                                       ),
-                                    );
-                                  },
-                                ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                     ),
                   ],
                 ),

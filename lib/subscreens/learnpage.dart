@@ -18,7 +18,7 @@ class _LearnpageState extends State<Learnpage> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: ksubbackgroundcolor,
+        backgroundColor: kmainBackgroundcolor,
         title: Padding(
           padding: const EdgeInsets.only(top: 20),
           child: Text(
@@ -31,11 +31,13 @@ class _LearnpageState extends State<Learnpage> {
           ),
         ),
       ),
-      backgroundColor: ksubbackgroundcolor,
+      backgroundColor: kmainBackgroundcolor,
       body: SingleChildScrollView(
         child: Column(
           children: [
             const SizedBox(height: 15),
+
+            /// 🔹 Animated header container
             Padding(
               padding: const EdgeInsets.all(15.0),
               child: TweenAnimationBuilder<Offset>(
@@ -58,7 +60,7 @@ class _LearnpageState extends State<Learnpage> {
                     boxShadow: [
                       BoxShadow(
                         blurStyle: BlurStyle.solid,
-                        color: ksubcolor,
+                        color: kwhitecolor,
                         offset: Offset.zero,
                         spreadRadius: 0.9,
                         blurRadius: 0.5,
@@ -94,30 +96,51 @@ class _LearnpageState extends State<Learnpage> {
               ),
             ),
 
-            const SizedBox(height: 2),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    'Bitverse',
-                    style: TextStyle(
-                      color: kwhitecolor,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
+            const SizedBox(height: 10),
+
+            /// 🔹 Horizontal buttons (now placed on top of other content)
+            SizedBox(
+              height: 60,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: earnText.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: customContainer(
+                      45,
+                      size.width / 2.1,
+                      BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            blurStyle: BlurStyle.solid,
+                            color: ksubcolor,
+                            offset: Offset.zero,
+                            spreadRadius: 0.9,
+                            blurRadius: 0.5,
+                          ),
+                        ],
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(20),
+                          bottomRight: Radius.circular(20),
+                        ),
+                        color: ksubbackgroundcolor,
+                      ),
+                      Center(
+                        child: Text(
+                          earnText[index],
+                          style: TextStyle(color: kwhitecolor),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 15),
-                  child: Icon(Icons.book_outlined, color: kwhitecolor),
-                ),
-              ],
+                  );
+                },
+              ),
             ),
 
-            const SizedBox(height: 5),
+            const SizedBox(height: 10),
 
+            /// 🔹 Horizontal Lottie cards
             SizedBox(
               height: 250,
               child: ListView.builder(
@@ -126,15 +149,15 @@ class _LearnpageState extends State<Learnpage> {
                 itemBuilder: (context, index) {
                   String image = images[index];
                   return Padding(
-                    padding: const EdgeInsets.all(4.0),
+                    padding: const EdgeInsets.all(8.0),
                     child: customContainer(
-                      size.height / 7.4,
+                      250,
                       size.width / 2.1,
                       BoxDecoration(
                         boxShadow: [
                           BoxShadow(
-                            blurStyle: BlurStyle.outer,
-                            color: ksubcolor,
+                            blurStyle: BlurStyle.solid,
+                            color: kwhitecolor,
                             offset: Offset.zero,
                             spreadRadius: 0.9,
                             blurRadius: 0.5,
@@ -148,50 +171,44 @@ class _LearnpageState extends State<Learnpage> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                      index == 2   ?   Lottie.asset(
+                            Lottie.asset(
                               image,
-                              fit: BoxFit.cover,
-                              height: index == 2 ? 150 : null,
-                            ):Lottie.asset(
-                              image,
-                              fit: BoxFit.fitHeight,
-                              height: index == 2 ? 150 : null),
-                            Align(
-                              alignment: index == 2
-                                  ? Alignment.centerRight
-                                  : Alignment.center,
-                              child: Padding(
-                                padding: index == 2
-                                    ? const EdgeInsets.only(right: 8.0, top: 39.5,left:8.0 )
-                                    : const EdgeInsets.all(8.0),
-                                child: customContainer(
-                                  45,
-                                  size.width / 2.1,
-                                  BoxDecoration(
-                                    boxShadow: [
-                                      BoxShadow(
-                                        blurStyle: BlurStyle.solid,
-                                        color: ksubcolor,
-                                        offset: Offset.zero,
-                                        spreadRadius: 0.9,
-                                        blurRadius: 0.5,
-                                      ),
-                                    ],
-                                    borderRadius: const BorderRadius.only(
-                                      topLeft: Radius.circular(20),
-                                      bottomRight: Radius.circular(20),
-                                    ),
-                                    color: ksubbackgroundcolor,
-                                  ),
-                                  Center(
-                                    child: Text(
-                                      earnText[index],
-                                      style: TextStyle(color: kwhitecolor),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              fit: index == 2
+                                  ? BoxFit.cover
+                                  : BoxFit.fitHeight,
+                                
+                              height: index == 2 ? 180 : 150,
                             ),
+                            Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6,vertical: 8),
+                    child: customContainer(
+                      45,
+                      size.width / 2.1,
+                      BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            blurStyle: BlurStyle.solid,
+                            color: ksubcolor,
+                            offset: Offset.zero,
+                            spreadRadius: 0.9,
+                            blurRadius: 0.5,
+                          ),
+                        ],
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(20),
+                          bottomRight: Radius.circular(20),
+                        ),
+                        color: ksubbackgroundcolor,
+                      ),
+                      Center(
+                        child: Text(
+                          earnText[index],
+                          style: TextStyle(color: kwhitecolor),
+                        ),
+                      ),
+                    ),
+                  ),
+
                           ],
                         ),
                       ),
@@ -201,8 +218,9 @@ class _LearnpageState extends State<Learnpage> {
               ),
             ),
 
-            const SizedBox(height: 3),
+            const SizedBox(height: 10),
 
+            /// 🔹 Video section
             Row(
               children: [
                 Padding(
@@ -218,8 +236,6 @@ class _LearnpageState extends State<Learnpage> {
                 ),
               ],
             ),
-
-            const SizedBox(height: 5),
 
             SizedBox(
               height: 250,
@@ -245,7 +261,7 @@ class _LearnpageState extends State<Learnpage> {
                         color: kmainBackgroundcolor,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      const SizedBox(), // Add your content here
+                      const SizedBox(),
                     ),
                   );
                 },

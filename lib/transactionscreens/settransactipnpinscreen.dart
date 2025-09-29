@@ -36,8 +36,7 @@ class _SetTransactionPinScreenState extends State<SetTransactionPinScreen> with 
 
   @override
   void dispose() {
-    setPinController.clear();
-    confirmPinController.clear();
+    
     setPinController.dispose();
     confirmPinController.dispose();
     super.dispose();

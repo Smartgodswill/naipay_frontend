@@ -20,7 +20,7 @@ class SendtransactionpinBloc
       await UserService().verifyTransactionPin(event.email, event.pin);
       emit(PinVerified());
     } catch (e) {
-      emit(TransactionFailure("❌ Failed to verify PIN: $e"));
+      emit(TransactionFailure(" Failed to verify PIN: $e"));
     }
   }
 
@@ -83,7 +83,6 @@ class SendtransactionpinBloc
 
   print('Full txResult: $txResult'); 
   print("Tx Result: ${txResult["trc20Transactions"][0]["txid"]}");
-// Debug full response
 
   if (!(txResult['success'] ?? false)) {
     throw Exception(txResult['error'] ?? 'USDT transaction failed');
@@ -103,7 +102,6 @@ class SendtransactionpinBloc
 
   print('Updated trc20Transactions from backend: $updatedTransactionHistory'); // Debug
 
-  // Use the first transaction from trc20Transactions for txData, mapping field names
   final transaction = updatedTransactionHistory.isNotEmpty ? updatedTransactionHistory.first : {};
 
   updatedWalletInfo = {
@@ -123,14 +121,14 @@ class SendtransactionpinBloc
     'updatedWalletInfo': updatedWalletInfo,
   };
 } else {
-  emit(TransactionFailure("❌ Coin ${event.coin} not supported"));
+  emit(TransactionFailure(" Coin ${event.coin} not supported"));
   return;
 }
 
 emit(TransactionSuccess(txData));
     } catch (e) {
-      print("❌ Transaction failed: $e");
-      emit(TransactionFailure("❌ Transaction failed: $e"));
+      print(" Transaction failed: $e");
+      emit(TransactionFailure(" Transaction failed: $e"));
     }
   }
 }

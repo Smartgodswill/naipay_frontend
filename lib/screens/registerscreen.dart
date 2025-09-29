@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:naipay/screens/loginscreen.dart';
 import 'package:naipay/screens/verifyregisterotp.dart';
 import 'package:naipay/state%20management/onboarding/onboarding_bloc.dart';
@@ -41,6 +42,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (state is OnboardingSentOtpSuccessState) {
           customSnackBar('Otp sent successfully', context);
           hasNavigated = true; 
+            final secureStorage = const FlutterSecureStorage(); 
+                var storedEmail=    secureStorage.write(key: 'user_email', value: _emailController.text.trim());
+                print(" ✅ email stored on user devices is  $storedEmail");
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(

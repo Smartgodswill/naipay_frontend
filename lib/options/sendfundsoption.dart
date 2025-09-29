@@ -162,7 +162,6 @@ Widget sendfundsoption(
   );
 }
 
-/// 🔑 Helper function to check for PIN before navigating
 void _navigateWithPinCheck(
   BuildContext context,
   Map<String, dynamic> userInfo,

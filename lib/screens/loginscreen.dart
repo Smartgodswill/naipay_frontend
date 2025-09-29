@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:naipay/screens/verifyloginotp.dart';
 import 'package:naipay/screens/registerscreen.dart';
 import 'package:naipay/state%20management/restorewallet/bloc/restorewallet_bloc.dart';
@@ -57,21 +58,30 @@ class _LoginScreenState extends State<LoginScreen> {
         child: BlocConsumer<RestorewalletBloc, RestorewalletState>(
           listener: (context, state) {
             setState(() => isSubmitting = false);
-            if (state is RestorewalletSuccessState) {
-              customSnackBar('Otp send successfully', context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) {
-                    String email = emailController.text;
-                    String password = passwordController.text;
-                    return VerifyloginOtpScreen(
-                      email: email,
-                      password: password,
-                    );
-                  },
-                ),
-              );
+           if (state is RestorewalletSuccessState) {
+  customSnackBar('Otp send successfully', context);
+
+  final secureStorage = const FlutterSecureStorage();
+  // write without await
+  secureStorage.write(key: 'user_email', value: emailController.text)
+    .then((_) async {
+      final storedEmail = await secureStorage.read(key: 'user_email');
+      debugPrint('Stored email: $storedEmail');
+
+      // Navigate after storage write is done
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => VerifyloginOtpScreen(
+              email: emailController.text,
+              password: passwordController.text,
+            ),
+          ),
+        );
+      }
+    });
+
             } else if (state is RestorewalletFailureState) {
               customDialog(context, state.message);
             }
