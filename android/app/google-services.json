@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "363335774443",
+    "project_id": "naipaybackend",
+    "storage_bucket": "naipaybackend.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:363335774443:android:4660027aa4db3dfabf0eae",
+        "android_client_info": {
+          "package_name": "com.example.naipay"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRZDyB_SYwAdjV0PTi2_1alx0jeWaGv9A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -16,6 +16,7 @@ class Sendfundscreen extends StatefulWidget {
   final String coin;
   final double balance;
   final double usdtEquivalent;
+  final double updatedBal;
   final Map<String, dynamic> wallets;
 
   Sendfundscreen({
@@ -25,6 +26,7 @@ class Sendfundscreen extends StatefulWidget {
     required this.usdtEquivalent,
     required this.balance,
     required this.wallets,
+    required this.updatedBal,
   });
 
   @override
@@ -35,15 +37,12 @@ class _SendfundscreenState extends State<Sendfundscreen> {
   final TextEditingController addressController = TextEditingController();
   final TextEditingController amountController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
-  final formatter = NumberFormat('#,##0.00', 'en_US');
+  final formatter = NumberFormat('#,##0.00000000', 'en_US');
 
   bool isAddressValid = false;
   String addressError = '';
   String amountError = '';
-  double? estimatedFee; // Store the USDT fee
-  String baseUrl =
-      'https://your-api-base-url.com'; // Replace with your actual base URL
-
+  double? estimatedFee;
   @override
   void initState() {
     super.initState();
@@ -88,23 +87,9 @@ class _SendfundscreenState extends State<Sendfundscreen> {
         child: Column(
           children: [
             const SizedBox(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Bal:   ${widget.balance} ${widget.coin}",
-                  style: TextStyle(color: kmainWhitecolor, fontSize: 20),
-                ),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "= ${formatter.format(widget.usdtEquivalent)} USDT",
-                  style: TextStyle(color: kwhitecolor, fontSize: 10),
-                ),
-              ],
+            Text(
+              '${widget.balance} ${widget.coin}',
+              style: TextStyle(color: kwhitecolor, fontSize: 25),
             ),
             const SizedBox(height: 45),
             Row(
@@ -258,14 +243,11 @@ class _SendfundscreenState extends State<Sendfundscreen> {
                   return;
                 }
 
-                // ✅ Start loading immediately
                 setState(() => _isCalculatingFee = true);
 
-                // ✅ Let the UI rebuild before showing the modal
                 await Future.delayed(Duration.zero);
                 try {
                   if (coinType == 'BTC') {
-                    // ✅ Await the modal
                     await showConfirmBottomSheet(
                       context,
                       userMnemonic: widget.userInfo['mnemonic'],
@@ -274,22 +256,21 @@ class _SendfundscreenState extends State<Sendfundscreen> {
                       coin: 'BTC',
                       userInfo: widget.userInfo,
                       fromAddress: widget.wallets['bitcoin_address'],
-                      walletInfo: widget.wallets
+                      walletInfo: widget.wallets,
                     );
                   } else if (coinType == 'USDT') {
                     await showUsdtSummaryBottomSheet(
                       context,
                       email: widget.userInfo['email'],
                       toAddress: addressController.text.trim(),
-                      amount:amountValue,
+                      amount: amountValue,
                       userInfo: widget.userInfo,
-                      walletInfo: widget.wallets
+                      walletInfo: widget.wallets,
                     );
                   } else {
                     customSnackBar('Coin type not supported yet', context);
                   }
                 } finally {
-                  // ✅ Stop loading once bottom sheet is shown or error occurs
                   if (mounted) setState(() => _isCalculatingFee = false);
                 }
               },
@@ -314,11 +295,9 @@ Future<void> showConfirmBottomSheet(
   required Map<String, dynamic>? walletInfo,
 }) async {
   try {
-    // Convert to sats for preview only
     final int amountInSats = (amountInBtc * 100000000).round();
     print('Converting amount: $amountInBtc BTC to $amountInSats sats');
 
-    // Call preview with satoshis
     final previewData = await WalletService().previewTransaction(
       userMnemonic: userMnemonic,
       recipientAddress: recipientAddress.trim(),
@@ -359,7 +338,10 @@ Future<void> showConfirmBottomSheet(
                 ),
               ),
               const SizedBox(height: 20),
-              _infoRow("Amount:", "${formatter.format(amount / 100000000)} BTC"),
+              _infoRow(
+                "Amount:",
+                "${formatter.format(amount / 100000000)} BTC",
+              ),
               _infoRow("Recipient Address:", recipientAddress),
               _infoRow("Fee:", "${formatter.format(fee / 100000000)} BTC"),
               _infoRow(
@@ -413,22 +395,23 @@ Future<void> showConfirmBottomSheet(
                           Navigator.pop(context);
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (context) => BlocProvider<SendtransactionpinBloc>(
-                                create: (_) => SendtransactionpinBloc(),
-                                child: SetTransactionPinView(
-                                  userInfo: userInfo ?? {},
-                                  amount: amountInBtc, // Pass as double BTC
-                                  previewData: {
-                                    ...previewData,
-                                    'amount': amountInBtc, // Store original double for display
-                                    'fee': fee / 100000000, // Convert fee back to BTC for display
-                                  },
-                                  coin: coin,
-                                  walletInfo: walletInfo ?? {},
-                                  fromAddress: fromAddress,
-                                  toAddress: recipientAddress,
-                                ),
-                              ),
+                              builder: (context) =>
+                                  BlocProvider<SendtransactionpinBloc>(
+                                    create: (_) => SendtransactionpinBloc(),
+                                    child: SetTransactionPinView(
+                                      userInfo: userInfo ?? {},
+                                      amount: amountInBtc,
+                                      previewData: {
+                                        ...previewData,
+                                        'amount': amountInBtc,
+                                        'fee': fee 
+                                      },
+                                      coin: coin,
+                                      walletInfo: walletInfo ?? {},
+                                      fromAddress: fromAddress,
+                                      toAddress: recipientAddress,
+                                    ),
+                                  ),
                             ),
                           );
                         },
@@ -450,8 +433,7 @@ Future<void> showConfirmBottomSheet(
   }
 }
 
-
-  Future<void> showUsdtSummaryBottomSheet(
+Future<void> showUsdtSummaryBottomSheet(
   BuildContext context, {
   required String email,
   required String toAddress,
@@ -517,7 +499,7 @@ Future<void> showConfirmBottomSheet(
             else ...[
               _infoRow("Amount", "$amount USDT"),
               _infoRow("To Address", toAddress),
-              _infoRow("Fee", "${fee.toStringAsFixed(6)} USDT"),
+              _infoRow("Fee", "${formatter.format(fee)} USDT"),
               if (note != null && note.isNotEmpty) _infoRow("Note", note),
             ],
             const Spacer(),
@@ -563,23 +545,25 @@ Future<void> showConfirmBottomSheet(
                             Navigator.pop(context);
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) => BlocProvider<SendtransactionpinBloc>(
-                                  create: (_) => SendtransactionpinBloc(),
-                                  child: SetTransactionPinView(
-                                    userInfo: userInfo,
-                                    amount: amount, // Ensure this is 60.0
-                                    previewData: {
-                                      'amount': amount,
-                                      'fee': fee,
-                                      'toAddress': toAddress,
-                                      'note': note,
-                                    },
-                                    coin: 'USDT',
-                                    walletInfo: walletInfo,
-                                    fromAddress: walletInfo['usdt_address'] ?? '',
-                                    toAddress: toAddress,
-                                  ),
-                                ),
+                                builder: (context) =>
+                                    BlocProvider<SendtransactionpinBloc>(
+                                      create: (_) => SendtransactionpinBloc(),
+                                      child: SetTransactionPinView(
+                                        userInfo: userInfo,
+                                        amount: amount, // Ensure this is 60.0
+                                        previewData: {
+                                          'amount': amount,
+                                          'fee': fee,
+                                          'toAddress': toAddress,
+                                          'note': note,
+                                        },
+                                        coin: 'USDT',
+                                        walletInfo: walletInfo,
+                                        fromAddress:
+                                            walletInfo['usdt_address'] ?? '',
+                                        toAddress: toAddress,
+                                      ),
+                                    ),
                               ),
                             );
                           },

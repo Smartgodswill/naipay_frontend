@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:naipay/main.dart';
 import 'package:naipay/state%20management/onboarding/onboarding_bloc.dart';
 import 'package:naipay/subscreens/homepage.dart';
 import 'package:naipay/theme/colors.dart';
@@ -59,11 +60,17 @@ class _VerifyRegisterOtpScreenState extends State<VerifyRegisterOtpScreen> {
     return Scaffold(
       backgroundColor: kmainBackgroundcolor,
       body: BlocConsumer<OnboardingBloc, OnboardingState>(
-        listener: (context, state) {
+        listener: (context, state) async{
           if (state is OnboardingOtpResendSuccessState) {
             customSnackBar('OTP resend requested', context);
           } else if (state is OnboardingSentOtpSuccessState) {
             customSnackBar('OTP verified', context);
+             await MyApp.showLocalNotification(
+    "Welcome to Bitsure 🎉",
+    "You’re all set  enjoy easy and safe crypto management!",
+    {"type": "welcome"},
+  );
+
             Navigator.push(
               context,
               MaterialPageRoute(

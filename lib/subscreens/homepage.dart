@@ -1,7 +1,11 @@
+// ignore_for_file: unused_import, must_be_immutable
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:naipay/animations/animatedloader.dart';
 import 'package:naipay/options/sendfundsoption.dart';
+import 'package:naipay/screens/registerscreen.dart';
 import 'package:naipay/state%20management/pricesbloc/prices_bloc.dart';
 import 'package:naipay/state%20management/fetchdata/bloc/fetchdata_bloc.dart';
 import 'package:naipay/subscreens/learnpage.dart';
@@ -45,6 +49,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
   bool visble = true;
   bool _hasShownPriceErrorSnackBar = false;
   bool _hasShownUserErrorSnackBar = false;
+  bool showAllTransactions = false;
 
   @override
   void initState() {
@@ -73,48 +78,248 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
     }
   }
 
-  void updateUsdtAfterTransaction(Map<String, dynamic> updatedWalletInfo) {
-    print('Updating USDT with: $updatedWalletInfo');
+  void updateAfterTransaction(
+    Map<String, dynamic> updatedWalletInfo, {
+    required String currency,
+  }) {
+    print('Updating $currency with: $updatedWalletInfo');
     setState(() {
-      _pendingOutgoingUsdt = 0.0;
+      if (currency == 'USDT') {
+        _pendingOutgoingUsdt = 0.0;
+        // Update USDT balance only (no manual transaction history merge)
+        final wallet = {...?widget.wallets};
+        double usdtBalance = wallet?['usdtBalances'] is int
+            ? (wallet['usdtBalances'] as int).toDouble()
+            : wallet?['usdtBalances']?.toDouble() ?? 0.0;
 
-      // Update USDT balance
-      final wallet = {...?widget.wallets};
-      double usdtBalance = wallet?['usdtBalances'] is int
-          ? (wallet['usdtBalances'] as int).toDouble()
-          : wallet?['usdtBalances']?.toDouble() ?? 0.0;
+        usdtBalance = updatedWalletInfo['newBalance'] != null
+            ? double.tryParse(updatedWalletInfo['newBalance'].toString()) ??
+                  usdtBalance
+            : usdtBalance;
 
-      usdtBalance = updatedWalletInfo['newBalance'] != null
-          ? double.tryParse(updatedWalletInfo['newBalance'].toString()) ??
-                usdtBalance
-          : usdtBalance;
+        wallet['usdtBalances'] = usdtBalance;
 
-      wallet['usdtBalances'] = usdtBalance;
+        widget.wallets = wallet;
+        print('Updated USDT balance: $usdtBalance');
+      } else if (currency == 'BTC') {
+        _pendingOutgoingBtc = 0.0;
+        // Update BTC balance (no manual transaction history merge)
+        final wallet = {...?widget.wallets};
+        int balanceSats = wallet?['balance_sats'] is int
+            ? wallet['balance_sats'] as int
+            : int.tryParse(wallet['balance_sats']?.toString() ?? '0') ?? 0;
 
-      // Merge TRC20 transactions from userInfo
-      final newTransactions =
-          updatedWalletInfo['trc20Transactions'] as List<dynamic>? ?? [];
-      final oldTransactions =
-          widget.userInfo?['usdt_transaction_history'] as List<dynamic>? ?? [];
-      final mergedTransactions = [
-        ...newTransactions,
-        ...oldTransactions,
-      ].whereType<Map<String, dynamic>>().toList();
+        if (updatedWalletInfo['newBalanceSats'] != null) {
+          balanceSats =
+              int.tryParse(updatedWalletInfo['newBalanceSats'].toString()) ??
+              balanceSats;
+        }
 
-      widget.wallets = wallet;
-      widget.trc20Transactions = mergedTransactions;
-      print(
-        'Merged TRC20 Transactions (count: ${widget.trc20Transactions!.length}): ${widget.trc20Transactions}',
-      );
+        wallet['balance_sats'] = balanceSats;
+
+        widget.wallets = wallet;
+        print('Updated BTC wallet: ${widget.wallets}');
+      }
     });
+
+    // Trigger a fresh fetch from server/blockchain after update to get latest transaction history
+    context.read<FetchdataBloc>().add(FetchUserDataEvent(email: widget.email));
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final formatter = NumberFormat('#,##0.00', 'en_US');
+    final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: Drawer(
+        backgroundColor: kmainBackgroundcolor,
+        child: Padding(
+          padding: const EdgeInsets.all(2.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 40),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: customContainer(
+                  200,
+                  size.width,
+                  BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: kwhitecolor,
+                        blurStyle: BlurStyle.outer,
+                        blurRadius: 5,
+                        spreadRadius: 0.9,
+                      ),
+                    ],
+                    color: kmainBackgroundcolor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(width: 10),
+                      Text(
+                        'BitSure',
+                        style: TextStyle(
+                          color: kwhitecolor,
+                          fontSize: 25,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              Expanded(
+                child: ListView(
+                  children: [
+                    ExpansionTile(
+                      leading: const Icon(Icons.person, color: Colors.white),
+                      title: const Text(
+                        "Profile",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                      collapsedIconColor: Colors.white,
+                      iconColor: Colors.white,
+                      children: [
+                        ListTile(
+                          title: Text(
+                            overflow: TextOverflow.ellipsis,
+                            "Name: ${widget.userInfo?['name']}",
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                        ListTile(
+                          title: Text(
+                            "Email: ${widget.email}",
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ExpansionTile(
+                      leading: const Icon(Icons.code, color: Colors.white),
+                      title: const Text(
+                        "Referal Code",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                      collapsedIconColor: Colors.white,
+                      iconColor: Colors.white,
+                      children: [
+                        ListTile(
+                          title: Text(
+                            "Your referal code is:",
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                        ListTile(
+                          title: Row(
+                            children: [
+                              Text(
+                                "${widget.userInfo?['referralCode']}",
+                                style: TextStyle(color: kwhitecolor),
+                              ),
+                              IconButton(
+                                onPressed: () async {
+                                  final code =
+                                      widget.userInfo?['referralCode'] ?? '';
+                                  if (code.isNotEmpty) {
+                                    await Clipboard.setData(
+                                      ClipboardData(text: code),
+                                    );
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Referral code copied to clipboard!',
+                                        ),
+                                        backgroundColor: Colors.green,
+                                        behavior: SnackBarBehavior.floating,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: Icon(Icons.copy, color: kwhitecolor),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    ExpansionTile(
+                      leading: const Icon(Icons.numbers, color: Colors.white),
+                      title: const Text(
+                        "Referal count",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                      collapsedIconColor: Colors.white,
+                      iconColor: Colors.white,
+                      children: [
+                        ListTile(
+                          title: Text(
+                            "Your referal count  is:",
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                        ListTile(
+                          title: Text(
+                            "${widget.userInfo?['referralCount']}",
+                            style: TextStyle(color: kwhitecolor),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ExpansionTile(
+                      leading: const Icon(
+                        Icons.logout_sharp,
+                        color: Colors.white,
+                      ),
+                      title: const Text(
+                        "Logout",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                      collapsedIconColor: Colors.white,
+                      iconColor: Colors.white,
+                      children: [
+                        ListTile(
+                          trailing: IconButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) {
+                                    return RegisterScreen();
+                                  },
+                                ),
+                              );
+                            },
+                            icon: Icon(Icons.logout, color: Colors.white70),
+                          ),
+                          title: Text(
+                            "Are you sure you want to loggout?",
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+
       backgroundColor: kmainBackgroundcolor,
       body: BlocConsumer<FetchdataBloc, FetchdataState>(
         listener: (context, state) {
@@ -132,7 +337,6 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
             setState(() {
               _pendingOutgoingBtc = 0.0;
               _pendingOutgoingUsdt = 0.0;
-              // Safely update trc20Transactions from userInfo
               if (state.usersInfo?['usdt_transaction_history'] != null) {
                 final rawTransactions =
                     state.usersInfo!['usdt_transaction_history']
@@ -156,7 +360,6 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
               (state is FetchUsersSuccessState && state.usersInfo != null)
               ? state.usersInfo
               : widget.userInfo;
-          // Safely handle transactionUsdt with type checking
           final rawTransactionUsdt =
               userinfo?['usdt_transaction_history'] as List<dynamic>? ??
               widget.trc20Transactions as List<dynamic>?;
@@ -199,13 +402,11 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
 
           List<Map<String, dynamic>> transactions = [];
 
-          // Add pending BTC transaction if any
-          if (widget.pendingOutgoingBtc != null &&
-              widget.pendingOutgoingBtc! > 0 &&
-              widget.address != null) {
+          // Add pending BTC transaction if any (use _pending, not widget.pending)
+          if (_pendingOutgoingBtc > 0 && widget.address != null) {
             transactions.add({
               'type': 'send',
-              'amount': widget.pendingOutgoingBtc!.toDouble(),
+              'amount': _pendingOutgoingBtc,
               'currency': 'BTC',
               'time': DateTime.now(),
               'from': wallet?['bitcoin_address'] ?? 'Unknown',
@@ -214,14 +415,11 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
               'status': 'Pending',
             });
           }
-
-          // Add pending USDT transaction if any
-          if (widget.pendingOutgoingUsdt != null &&
-              widget.pendingOutgoingUsdt! > 0 &&
-              widget.address != null) {
+          // Add pending USDT transaction if any (use _pending, not widget.pending)
+          if (_pendingOutgoingUsdt > 0 && widget.address != null) {
             transactions.add({
               'type': 'send',
-              'amount': widget.pendingOutgoingUsdt!.toDouble(),
+              'amount': _pendingOutgoingUsdt,
               'currency': 'USDT',
               'time': DateTime.now(),
               'from': wallet?['usdt_address'] ?? 'Unknown',
@@ -231,7 +429,6 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
             });
           }
 
-          // BTC transactions from wallet
           if (wallet?['transaction_history'] != null) {
             transactions.addAll(
               (wallet!['transaction_history'] as List<dynamic>).map((tx) {
@@ -261,7 +458,6 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
             );
           }
 
-          // USDT transactions from userInfo (only total amount, no fee breakdown)
           if (transactionUsdt != null && transactionUsdt.isNotEmpty) {
             print(
               'Processing ${transactionUsdt.length} USDT transactions from userInfo',
@@ -280,7 +476,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                       (t['from'] == wallet?['usdt_address']
                           ? 'send'
                           : 'receive'),
-                  'amount': amount, // Only the base amount, no fee separation
+                  'amount': amount,
                   'currency': t['currency']?.toString() ?? 'USDT',
                   'time': t['time'] is String
                       ? DateTime.tryParse(t['time']) ?? DateTime.now()
@@ -293,9 +489,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                       t['txId']?.toString() ??
                       t['other_details']?.toString() ??
                       'N/A',
-                  'status':
-                      t['status']?.toString() ??
-                      'Pending', // Updated status handling
+                  'status': t['status']?.toString() ?? 'Pending',
                 };
               }).toList(),
             );
@@ -303,7 +497,6 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
             print('No USDT transactions found in userInfo');
           }
 
-          // Sort transactions newest first
           transactions.sort((a, b) => b['time'].compareTo(a['time']));
           print(
             'Merged Transactions (count: ${transactions.length}): $transactions',
@@ -333,7 +526,6 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                             state is FetchUsersFailureState,
                         orElse: () {
                           print('FetchdataBloc timeout');
-                         
                           return FetchUsersFailureState(message: 'Timeout');
                         },
                       )
@@ -354,7 +546,6 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                         const Duration(seconds: 5),
                         onTimeout: () {
                           print('FetchdataBloc timeout');
-                         
                         },
                       ),
                   context
@@ -366,7 +557,6 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                             state is PricesErrorState,
                         orElse: () {
                           print('PricesBloc timeout');
-
                           return PricesErrorState('Timeout');
                         },
                       )
@@ -391,7 +581,6 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                 print('Refresh completed: ${DateTime.now()}');
               } catch (e) {
                 print('Refresh error: $e');
-               
               }
             },
             child: SingleChildScrollView(
@@ -405,7 +594,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     customContainer(
-                      60,
+                      39,
                       size.width,
                       BoxDecoration(borderRadius: BorderRadius.circular(12)),
                       Row(
@@ -416,68 +605,51 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                               Padding(
                                 padding: const EdgeInsets.only(top: 5),
                                 child: IconButton(
-                                  onPressed: () {},
-                                  icon:  Icon(Icons.menu,color: kwhitecolor,size: 25,),
+                                  onPressed: () {
+                                    _scaffoldKey.currentState?.openDrawer();
+                                  },
+                                  icon: Icon(
+                                    Icons.menu,
+                                    color: kwhitecolor,
+                                    size: 25,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
                               Padding(
                                 padding: const EdgeInsets.only(top: 6),
-                                child: SizedBox(
-                                  width: 130,
-                                  child: Text(
-                                    userinfo != null
-                                        ? 'Welcome!'
-                                        : 'Welcome!',
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: kmainWhitecolor,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                child: Text(
+                                  userinfo != null ? 'Welcome!' : 'Welcome!',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: kwhitecolor,
+                                    fontSize: 25,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
-                                Padding(
-                                padding: const EdgeInsets.only(top: 0),
-                                child: SizedBox(
-                                  width: 130,
-                                  child: Text(
-                                    userinfo != null
-                                        ? '${userinfo['name']}'
-                                        : '.........',
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: kmainWhitecolor,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                             
                             ],
-                          ),
-                         
-                          Padding(
-                            padding: const EdgeInsets.only(left: 120),
-                            child: IconButton(
-                              onPressed: () {},
-                              icon: Icon(
-                                Icons.notifications,
-                                size: 30,
-                                color: kmainWhitecolor,
-                              ),
-                            ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 40),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 0, left: 50),
+                      child: Text(
+                        userinfo != null ? '${userinfo['name']}' : '.........',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: kmainWhitecolor,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -485,7 +657,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                           height: 150,
                           child: customContainer(
                             250,
-                            350,
+                            330,
                             BoxDecoration(
                               boxShadow: [
                                 BoxShadow(
@@ -517,11 +689,11 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                         icon: visble
                                             ? Icon(
                                                 Icons.visibility,
-                                                color: ksubbackgroundcolor,
+                                                color: kwhitecolor,
                                               )
                                             : Icon(
                                                 Icons.visibility_off,
-                                                color: ksubbackgroundcolor,
+                                                color: kmainWhitecolor,
                                               ),
                                       ),
                                     ],
@@ -686,7 +858,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                     Center(
                       child: customContainer(
                         size.height / 16,
-                        350,
+                        330,
                         BoxDecoration(
                           boxShadow: [
                             BoxShadow(
@@ -764,7 +936,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                         PageRouteBuilder(
                                           transitionDuration: const Duration(
                                             milliseconds: 500,
-                                          ), // Slightly slower for dramatic effect
+                                          ),
                                           pageBuilder:
                                               (
                                                 context,
@@ -778,10 +950,8 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                 secondaryAnimation,
                                                 child,
                                               ) {
-                                                const curve = Curves
-                                                    .easeOutBack; // Smooth "pop" feeling
-
-                                                // Scale animation (zoom in)
+                                                const curve =
+                                                    Curves.easeOutBack;
                                                 final scaleTween =
                                                     Tween<double>(
                                                       begin: 0.8,
@@ -789,13 +959,10 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                     ).chain(
                                                       CurveTween(curve: curve),
                                                     );
-
-                                                // Fade animation
                                                 final fadeTween = Tween<double>(
                                                   begin: 0.0,
                                                   end: 1.0,
                                                 );
-
                                                 return FadeTransition(
                                                   opacity: animation.drive(
                                                     fadeTween,
@@ -837,12 +1004,12 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                 children: [
                                   InkWell(
                                     onTap: () {
-                                      Navigator.push(
+                                      /*  Navigator.push(
                                         context,
                                         PageRouteBuilder(
                                           transitionDuration: const Duration(
                                             milliseconds: 400,
-                                          ), // Adjust speed
+                                          ),
                                           pageBuilder:
                                               (
                                                 context,
@@ -853,8 +1020,9 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                 btcbalance: displayedBtcBalance,
                                                 usdtbalance:
                                                     displayedUsdtBalance,
-                                                    userEmail: widget.userInfo?['email'],
-                                                    userinfo: widget.userInfo ??{}
+                                                userEmail:
+                                                    widget.userInfo?['email'],
+                                                userinfo: widget.userInfo ?? {},
                                               ),
                                           transitionsBuilder:
                                               (
@@ -866,11 +1034,9 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                 const beginOffset = Offset(
                                                   1.0,
                                                   0.0,
-                                                ); // Slide from right
+                                                );
                                                 const endOffset = Offset.zero;
                                                 const curve = Curves.easeInOut;
-
-                                                // Slide animation
                                                 final offsetTween =
                                                     Tween(
                                                       begin: beginOffset,
@@ -878,13 +1044,10 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                     ).chain(
                                                       CurveTween(curve: curve),
                                                     );
-
-                                                // Fade animation
                                                 final fadeTween = Tween<double>(
                                                   begin: 0.0,
                                                   end: 1.0,
                                                 );
-
                                                 return SlideTransition(
                                                   position: animation.drive(
                                                     offsetTween,
@@ -898,6 +1061,95 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                 );
                                               },
                                         ),
+                                      );*/
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) {
+                                          return AlertDialog(
+                                            backgroundColor: ktransparentcolor,
+                                            content: customContainer(
+                                              230,
+                                              MediaQuery.of(
+                                                    context,
+                                                  ).size.width *
+                                                  0.7,
+                                              BoxDecoration(
+                                                color: kmainBackgroundcolor,
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  TweenAnimationBuilder<double>(
+                                                    tween: Tween(
+                                                      begin: 0,
+                                                      end: 10,
+                                                    ),
+                                                    duration: const Duration(
+                                                      seconds: 1,
+                                                    ),
+                                                    curve: Curves.easeInOut,
+                                                    builder:
+                                                        (
+                                                          context,
+                                                          value,
+                                                          child,
+                                                        ) {
+                                                          return Padding(
+                                                            padding:
+                                                                EdgeInsets.only(
+                                                                  bottom: value,
+                                                                ),
+                                                            child: const Text(
+                                                              "🛠️",
+                                                              style: TextStyle(
+                                                                fontSize: 42,
+                                                              ),
+                                                            ),
+                                                          );
+                                                        },
+                                                    onEnd: () {},
+                                                  ),
+
+                                                  const SizedBox(height: 10),
+
+                                                  Text(
+                                                    "Swap is down for maintenance",
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      color: kmainWhitecolor,
+                                                      fontSize: 17,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+
+                                                  const SizedBox(height: 8),
+
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8.0,
+                                                        ),
+                                                    child: Text(
+                                                      "We're working on improvements and upgrades.\nPlease check back soon!",
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      style: TextStyle(
+                                                        color: kmainWhitecolor
+                                                            .withOpacity(0.9),
+                                                        fontSize: 14,
+                                                        height: 1.4,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        },
                                       );
                                     },
                                     child: CircleAvatar(
@@ -940,18 +1192,23 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                       );
                                       if (result != null &&
                                           result is Map<String, dynamic>) {
-                                        updateUsdtAfterTransaction(result);
+                                        final currency =
+                                            result['currency']?.toString() ??
+                                            'USDT';
+                                        updateAfterTransaction(
+                                          result,
+                                          currency: currency,
+                                        );
                                       }
                                     },
                                     child: CircleAvatar(
                                       radius: 25,
                                       backgroundColor: ksubcolor,
                                       child: Center(
-                                        child: SvgPicture.asset(
-                                          'asset/send.svg',
+                                        child: Icon(
+                                          Icons.arrow_upward,
                                           color: kwhitecolor,
-                                          height: 30,
-                                          width: 30,
+                                          size: 30,
                                         ),
                                       ),
                                     ),
@@ -979,17 +1236,26 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                 userInfo: userinfo ?? {},
                                               ),
                                         ),
-                                      );
+                                      ).then((result) {
+                                        if (result != null &&
+                                            result is bool &&
+                                            result) {
+                                          context.read<FetchdataBloc>().add(
+                                            FetchUserDataEvent(
+                                              email: widget.email,
+                                            ),
+                                          );
+                                        }
+                                      });
                                     },
                                     child: CircleAvatar(
                                       radius: 25,
                                       backgroundColor: ksubcolor,
                                       child: Center(
-                                        child: SvgPicture.asset(
-                                          'asset/recieveicon.svg',
+                                        child: Icon(
+                                          Icons.arrow_downward,
                                           color: kwhitecolor,
-                                          height: 30,
-                                          width: 30,
+                                          size: 30,
                                         ),
                                       ),
                                     ),
@@ -1334,18 +1600,27 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          Text(
-                            'View more',
-                            style: TextStyle(
-                              color: kmainWhitecolor,
-                              fontWeight: FontWeight.w600,
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                showAllTransactions = !showAllTransactions;
+                              });
+                            },
+                            child: Text(
+                              showAllTransactions ? 'View less' : 'View more',
+                              style: TextStyle(
+                                color: kmainWhitecolor,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
                     Container(
-                      height: 200,
+                      height: showAllTransactions
+                          ? 400
+                          : 120, // expands height when viewing more
                       width: size.width,
                       decoration: BoxDecoration(
                         color: kmainBackgroundcolor,
@@ -1373,7 +1648,11 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                             )
                           : ListView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
-                              itemCount: transactions.length,
+                              itemCount: showAllTransactions
+                                  ? transactions.length
+                                  : (transactions.length > 3
+                                        ? 3
+                                        : transactions.length),
                               itemBuilder: (context, index) {
                                 final tx = transactions[index];
                                 final isSend = tx['type'] == 'send';
@@ -1386,50 +1665,74 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                 ).format(time);
                                 final status = tx['status'] ?? 'Unknown';
 
-                                // Display only the total amount for USDT (no fee breakdown)
                                 final amountDisplay = currency == 'BTC'
                                     ? '${amount.toStringAsFixed(8)} BTC'
                                     : currency == 'USDT'
-                                    ? '${formatter.format(amount)} $currency' // Only base amount for USDT
+                                    ? '${formatter.format(amount)} $currency'
                                     : amount == 0.0
                                     ? 'Amount unavailable'
                                     : '${formatter.format(amount)} $currency';
 
                                 return Padding(
-                                  padding: const EdgeInsets.all(8.0),
+                                  padding: const EdgeInsets.all(2.0),
                                   child: InkWell(
                                     onTap: () {
                                       showDialog(
                                         context: context,
                                         builder: (context) => AlertDialog(
+                                          backgroundColor: kmainBackgroundcolor,
                                           title: Text(
                                             '${tx['type'].toUpperCase()} $currency Transaction',
+                                            style: TextStyle(
+                                              color: kmainWhitecolor,
+                                            ),
                                           ),
                                           content: Column(
                                             mainAxisSize: MainAxisSize.min,
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text('Amount: $amountDisplay'),
-                                              Text('Currency: $currency'),
+                                              Text(
+                                                'Amount: $amountDisplay',
+                                                style: TextStyle(
+                                                  color: kmainWhitecolor,
+                                                ),
+                                              ),
+                                              Text(
+                                                'Currency: $currency',
+                                                style: TextStyle(
+                                                  color: kmainWhitecolor,
+                                                ),
+                                              ),
                                               Text(
                                                 'Status: $status',
                                                 style: TextStyle(
-                                                  color: status == 'Confirmed'
-                                                      ? Colors.green
-                                                      : status == 'Pending'
-                                                      ? Colors.yellow
-                                                      : Colors.red,
-                                                  fontWeight: FontWeight.bold,
+                                                  color: kwhitecolor
                                                 ),
                                               ),
                                               Text(
                                                 'From: ${tx['from'] ?? 'N/A'}',
+                                                style: TextStyle(
+                                                  color: kmainWhitecolor,
+                                                ),
                                               ),
-                                              Text('To: ${tx['to'] ?? 'N/A'}'),
-                                              Text('Time: $formattedTime'),
+                                              Text(
+                                                'To: ${tx['to'] ?? 'N/A'}',
+                                                style: TextStyle(
+                                                  color: kmainWhitecolor,
+                                                ),
+                                              ),
+                                              Text(
+                                                'Time: $formattedTime',
+                                                style: TextStyle(
+                                                  color: kmainWhitecolor,
+                                                ),
+                                              ),
                                               Text(
                                                 'Other Details: ${tx['other_details'] ?? 'N/A'}',
+                                                style: TextStyle(
+                                                  color: kmainWhitecolor,
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -1502,17 +1805,12 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                             left: 10,
                                                           ),
                                                       child: Text(
-                                                        '$status',
+                                                        status.toLowerCase(),
                                                         style: TextStyle(
                                                           fontSize: 12,
-                                                          color:
-                                                              status ==
-                                                                  'Confirmed'
-                                                              ? Colors.green
-                                                              : status ==
-                                                                    'Pending'
-                                                              ? Colors.yellow
-                                                              : Colors.red,
+                                                          color:kwhitecolor
+                                                              
+                                                              
                                                         ),
                                                       ),
                                                     ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:naipay/main.dart';
 import 'package:naipay/state%20management/restorewallet/bloc/restorewallet_bloc.dart';
 import 'package:naipay/subscreens/homepage.dart';
 import 'package:naipay/theme/colors.dart';
@@ -49,16 +50,21 @@ class _VerifyloginOtpScreenState extends State<VerifyloginOtpScreen> {
       backgroundColor: kmainBackgroundcolor,
       body: SingleChildScrollView(
         child: BlocConsumer<RestorewalletBloc, RestorewalletState>(
-          listener: (context, state) {
-            if (state is RestoreVerifiedwalletSuccessState) {
+          listener: (context, state) async {
+            if (state is RestoreVerifiedwalletSuccessState){
               print(
                 'On HomePage NAviGated DATA:${state.mnemonic},${state.userInfo},${widget.email}',
               );
+                  await MyApp.showLocalNotification(
+    "Welcome back to Bitsure 🎉",
+    "You’re all set  enjoy easy and safe crypto management!",
+    {"type": "welcome"},
+  );
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) {
-                    
+                 
                     return Homepage(
                       wallets: state.mnemonic,
                       userInfo: state.userInfo,

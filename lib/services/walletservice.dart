@@ -63,7 +63,6 @@ class WalletService {
     };
   }
 
-  // 🔹 Load existing wallet
   Future<Map<String, dynamic>> loadExistingWallet(
       String email, String mnemonicString, Network network) async {
     await initBlockchain(network);
@@ -105,7 +104,6 @@ class WalletService {
     };
   }
 
-  //  Preview Transaction
  Future<Map<String, dynamic>> previewTransaction({
   required String userMnemonic,
   required String recipientAddress,
@@ -119,7 +117,6 @@ class WalletService {
     throw Exception("Amount below dust limit (546 sats).");
   }
 
-  //  Validate BTC address
   try {
     final address = await Address.create(address: recipientAddress);
   } catch (e) {
@@ -162,7 +159,6 @@ class WalletService {
     );
   }
 
-  // Address already validated above
   final address = await Address.create(address: recipientAddress);
   final script = await address.scriptPubKey();
   final finalFeeRate = feeRate ?? await _fetchRecommendedFeeRate();
@@ -186,7 +182,6 @@ class WalletService {
 }
 
 
-  //  Confirm Transaction
   Future<Map<String, dynamic>> confirmTransaction({
     required PartiallySignedTransaction psbt,
     required Wallet wallet,
@@ -206,7 +201,7 @@ class WalletService {
   }
 
  
-Future<double> _fetchRecommendedFeeRate({int targetBlocks = 5}) async {
+Future<double> _fetchRecommendedFeeRate({int targetBlocks = 15}) async {
   try {
     final feeRate = await _electrumBlockchain!.estimateFee(targetBlocks);
     final rate = feeRate.asSatPerVb();
@@ -223,7 +218,7 @@ Future<double> _fetchRecommendedFeeRate({int targetBlocks = 5}) async {
 Future<String> sendBtcToBitnob({
   required String userMnemonic,
   required String depositAddress,
-  required double btcAmount, // in BTC
+  required double btcAmount, 
   Network network = Network.Testnet,
 }) async {
   final int amountInSats = (btcAmount * 100000000).toInt();

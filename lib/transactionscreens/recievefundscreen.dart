@@ -35,7 +35,7 @@ class _RecievefundscreenState extends State<Recievefundscreen> {
   }
 
   final message = '''
-Naipay Request 🟡
+BitSure Request 🟡
 
 Send $formattedAmount to:
 → $address

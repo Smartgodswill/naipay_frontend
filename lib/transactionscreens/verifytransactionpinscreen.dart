@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:naipay/animations/animatedicon.dart';
+import 'package:naipay/services/userapi_service.dart';
 import 'package:naipay/state%20management/fetchdata/bloc/fetchdata_bloc.dart';
 import 'package:naipay/state%20management/sendtransactionpin/bloc/sendtransactionpin_bloc.dart';
 import 'package:naipay/subscreens/homepage.dart';
@@ -81,7 +83,7 @@ class _SetTransactionPinViewState extends State<SetTransactionPinView> {
             customSnackBar(state.error, context);
           } else if (state is PinVerified) {
             _hideLoading();
-            customSnackBar("✅ PIN verified, proceeding...", context);
+            customSnackBar("PIN verified, proceeding...", context);
             final int amountInSats = (widget.coin.toUpperCase() == 'BTC')
                 ? (widget.amount * 100000000)
                       .toInt() // Convert BTC to satoshis
@@ -116,15 +118,24 @@ class _SetTransactionPinViewState extends State<SetTransactionPinView> {
 
           if (state is TransactionSuccess) {
             final tx = state.transactionData;
-            print(
-              'TransactionSuccess txData in SetTransactionPinView: $tx',
-            ); // Debug log
+            print('TransactionSuccess txData in SetTransactionPinView: $tx');
             final updatedWalletInfo =
-                tx['updatedWalletInfo'] ?? widget.walletInfo;
+                tx['updatedWalletInfo'] ??
+                (widget.coin.toUpperCase() == 'BTC'
+                    ? widget.walletInfo
+                    : widget.userInfo);
             final lastSentAddress = widget.toAddress;
-            final double amount =
+            final String coin = tx['coin']?.toString().toUpperCase() ?? 'USDT';
+
+            final double rawAmount =
                 double.tryParse(tx['amount'].toString()) ?? 0.0;
-            final double fee = double.tryParse(tx['fee'].toString()) ?? 0.0;
+            final double amount = coin == 'BTC'
+                ? rawAmount / 100000000
+                : rawAmount;
+
+            final double rawFee = double.tryParse(tx['fee'].toString()) ?? 0.0;
+            final double fee = coin == 'BTC' ? rawFee / 100000000 : rawFee;
+
             final double total = amount + fee;
 
             if (widget.coin.toUpperCase() == 'USDT') {
@@ -132,23 +143,19 @@ class _SetTransactionPinViewState extends State<SetTransactionPinView> {
                 txData: tx,
                 onBack: () {
                   if (!mounted) return;
-                  context.read<FetchdataBloc>().add(
-                    FetchUserDataEvent(email: widget.userInfo['email']),
-                  );
+                  // Optional refetch, but Homepage will handle its own
+                  // context.read<FetchdataBloc>().add(FetchUserDataEvent(email: widget.userInfo['email']));
 
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(
                       builder: (_) => Homepage(
                         email: widget.userInfo['email'],
+                        wallets: widget.walletInfo,
+                        userInfo: widget.userInfo,
                         address: lastSentAddress,
-                        pendingOutgoingBtc: 0,
-                        userInfo: {
-                          ...widget.userInfo,
-                          'usdt_balance': updatedWalletInfo['usdt_balance'],
-                          'usdt_transaction_history':
-                              updatedWalletInfo['trc20Transactions'] ?? [],
-                        },
+                        pendingOutgoingBtc: 0.0,
+                        pendingOutgoingUsdt: widget.amount,
                       ),
                     ),
                     (route) => false,
@@ -156,27 +163,28 @@ class _SetTransactionPinViewState extends State<SetTransactionPinView> {
                 },
               );
             } else {
+              final updatedWallet = {
+                ...widget.walletInfo,
+                'balance_sats':
+                    updatedWalletInfo['balance_sats'] ??
+                    widget.walletInfo['balance_sats'],
+              };
               return _TransactionSummary(
                 txData: tx,
                 onBack: () {
                   if (!mounted) return;
-                  context.read<FetchdataBloc>().add(
-                    FetchUserDataEvent(email: widget.userInfo['email']),
-                  );
+                  // Optional refetch, but Homepage will handle its own
+                  // context.read<FetchdataBloc>().add(FetchUserDataEvent(email: widget.userInfo['email']));
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(
                       builder: (_) => Homepage(
                         email: widget.userInfo['email'],
+                        wallets: updatedWallet,
+                        userInfo: widget.userInfo,
                         address: lastSentAddress,
-                        pendingOutgoingBtc: 0,
-                        userInfo: {
-                          ...widget.userInfo,
-                          'bitcoin_balance':
-                              updatedWalletInfo['balance_sats'] ?? 0,
-                          'transaction_history':
-                              updatedWalletInfo['transaction_history'] ?? [],
-                        },
+                        pendingOutgoingBtc: widget.amount,
+                        pendingOutgoingUsdt: 0.0,
                       ),
                     ),
                     (route) => false,
@@ -208,6 +216,7 @@ class _SetTransactionPinViewState extends State<SetTransactionPinView> {
               );
             },
             controller: pinController,
+            email: widget.walletInfo['email'],
           );
         },
       ),
@@ -216,10 +225,15 @@ class _SetTransactionPinViewState extends State<SetTransactionPinView> {
 }
 
 class _PinInput extends StatelessWidget {
+  final String email;
   final void Function(String) onPinCompleted;
   final TextEditingController controller;
 
-  const _PinInput({required this.onPinCompleted, required this.controller});
+  const _PinInput({
+    required this.onPinCompleted,
+    required this.controller,
+    required this.email,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -280,7 +294,35 @@ class _PinInput extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.only(left: 2, top: 8),
-              child: Text('Reset Pin', style: TextStyle(color: kwhitecolor)),
+              child: GestureDetector(
+                onTap: () async {
+                  try {
+                    await UserService().resetTransactionPin(email);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'A reset PIN email has been sent to your inbox.',
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Failed to send reset link. Please try again.',
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                },
+
+                child: Text('Reset Pin', style: TextStyle(color: kwhitecolor)),
+              ),
             ),
           ],
         ),
@@ -293,38 +335,37 @@ class _TransactionSummary extends StatelessWidget {
   final Map<String, dynamic> txData;
   final VoidCallback onBack;
 
-  const _TransactionSummary({required this.txData, required this.onBack});
+  _TransactionSummary({required this.txData, required this.onBack});
+
+  final NumberFormat btcFormat = NumberFormat('#,##0.########', 'en_US');
+  final NumberFormat usdtFormat = NumberFormat('#,##0.00', 'en_US');
+
+  double _parseFee(dynamic rawFee) {
+    if (rawFee == null) return 0.0;
+
+    if (rawFee is int) return rawFee / 100000000;
+
+    final parsed = double.tryParse(rawFee.toString());
+    return parsed != null ? parsed / 100000000 : 0.0;
+  }
+
+  String formatAmount(double value, String coin) {
+    if (coin == 'USDT') return '${usdtFormat.format(value)} USDT';
+    return '${btcFormat.format(value)} BTC';
+  }
 
   @override
   Widget build(BuildContext context) {
-    print('Rendering _TransactionSummary with txData: $txData'); // Debug log
-    final double amount = double.tryParse(txData['amount'].toString()) ?? 0.0;
-    final double fee = double.tryParse(txData['fee'].toString()) ?? 0.0;
-    final double total = amount + fee;
     final String coin = txData['coin']?.toString().toUpperCase() ?? 'USDT';
-
-    String formatCryptoAmount(double value, String coin) {
-      if (coin == 'USDT') {
-        String formatted = value
-            .toStringAsFixed(6)
-            .replaceAllMapped(
-              RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-              (Match m) => '${m[1]},',
-            );
-        return formatted.endsWith('.000000')
-            ? formatted.replaceAll('.000000', '')
-            : '$formatted USDT';
-      } else if (coin == 'BTC') {
-        return '${value.toStringAsFixed(8).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} BTC';
-      }
-      return value.toString();
-    }
+    final double amount = double.tryParse(txData['amount'].toString()) ?? 0.0;
+    final double fee = _parseFee(txData['fee']);
+    final double total = amount + fee;
 
     return Column(
       children: [
         AnimatedVerifyIconPopup(),
         SizedBox(
-          height: 450,
+          height: 350,
           child: Padding(
             padding: const EdgeInsets.all(9.0),
             child: Card(
@@ -347,44 +388,26 @@ class _TransactionSummary extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
+
                     Text(
                       'From: ${txData['fromAddress'] ?? 'N/A'}',
-                      style: TextStyle(
-                        color: kmainWhitecolor,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(color: kmainWhitecolor),
                     ),
                     Text(
                       'To: ${txData['toAddress'] ?? 'N/A'}',
-                      style: TextStyle(
-                        color: kmainWhitecolor,
-                        fontWeight: FontWeight.bold,
+                      style: TextStyle(color: kmainWhitecolor),
+                    ),
+
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Amount sent : ${formatAmount(amount, coin)}',
+                        style: TextStyle(color: kmainWhitecolor),
                       ),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Amount: ${formatCryptoAmount(amount, coin)}',
-                          style: TextStyle(
-                            color: kmainWhitecolor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Fee: ${formatCryptoAmount(fee, coin)}',
-                          style: TextStyle(
-                            color: kmainWhitecolor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
+
+                    const SizedBox(height: 10),
                     Text(
                       'TxID: ${txData['txid'] ?? 'N/A'}',
                       style: TextStyle(
@@ -392,52 +415,34 @@ class _TransactionSummary extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Total amount sent: ${formatCryptoAmount(total, coin)}',
-                          style: TextStyle(
-                            color: kmainWhitecolor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        ElevatedButton(
-                          onPressed: onBack,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: kwhitecolor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+
+                    Padding(
+                      padding: const EdgeInsets.only(top: 30),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          ElevatedButton(
+                            onPressed: onBack,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: kwhitecolor,
+                            ),
+                            child: Text(
+                              'Back to Homepage',
+                              style: TextStyle(color: kmainWhitecolor),
                             ),
                           ),
-                          child: Text(
-                            'Back to Homepage',
-                            style: TextStyle(color: kmainWhitecolor),
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            // Implement share receipt logic
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ksubcolor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                          ElevatedButton(
+                            onPressed: () {},
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ksubcolor,
+                            ),
+                            child: Text(
+                              'Share Receipt',
+                              style: TextStyle(color: kwhitecolor),
                             ),
                           ),
-                          child: Text(
-                            'Share Receipt',
-                            style: TextStyle(color: kwhitecolor),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),

@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.naipay"> <!-- ✅ Add your correct app package here -->
+    package="com.example.naipay">
 
     <application
         android:name="${applicationName}"
@@ -13,6 +13,7 @@
             android:launchMode="singleTop"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
+            android:screenOrientation="portrait"  
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
@@ -38,4 +39,5 @@
             <data android:mimeType="text/plain" />
         </intent>
     </queries>
+
 </manifest>

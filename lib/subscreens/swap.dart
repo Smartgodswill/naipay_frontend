@@ -43,9 +43,9 @@ class _SwapPageState extends State<SwapPage> {
   Map<String, dynamic>? _quoteData;
 
   final String _backendQuoteUrl =
-      'http://10.139.131.94:2000/auth/initialize-swap-quote';
+      'http://10.0.2.2:2000/auth/initialize-swap-quote';
   final String _backendOrderUrl =
-      'http://10.139.131.94:2000/auth/create-swap-order';
+      'http://10.0.2.2:2000/auth/create-swap-order';
 
   double? _btcPriceUsd;
   late SendswaptobitnobBloc _swapBloc;
@@ -54,7 +54,7 @@ class _SwapPageState extends State<SwapPage> {
   Future<void> _callProceedSwap(String txid,  String usdtAddress) async {
   try {
     final response = await http.post(
-      Uri.parse("http://:2000/auth/proceed-swap"),
+      Uri.parse("http://10.0.2.2:2000/auth/proceed-swap"),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         "txid": txid,
@@ -66,11 +66,9 @@ class _SwapPageState extends State<SwapPage> {
       final data = jsonDecode(response.body);
 
       if (data["success"] == true && data["status"] == "payout_sent") {
-        // ✅ Show confirmation to user
         _showSuccessMessage("USDT sent! TXID: ${data['payoutTxId']}");
       } else {
         _showError("Waiting for BTC confirmation...");
-        // Optionally poll again after some delay
       }
     } else {
       _showError("Server error: ${response.body}");

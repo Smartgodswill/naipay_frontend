@@ -183,6 +183,7 @@ void _navigateWithPinCheck(
       context,
       MaterialPageRoute(
         builder: (context) => Sendfundscreen(
+          updatedBal: balance,
           wallets: wallet ?? {},
           userInfo: userInfo,
           coin: coin,
