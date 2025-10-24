@@ -1,12 +1,12 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:naipay/main.dart';
+import 'package:naipay/model/getusersmodels.dart' show Getuser;
+import 'package:naipay/services/userapi_service.dart';
 import 'package:naipay/state%20management/onboarding/onboarding_bloc.dart';
 import 'package:naipay/subscreens/homepage.dart';
 import 'package:naipay/theme/colors.dart';
-import 'package:naipay/transactionscreens/settransactipnpinscreen.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:naipay/utils/utils.dart';
 
@@ -15,6 +15,7 @@ class VerifyRegisterOtpScreen extends StatefulWidget {
   final String fullname;
   final String selectedCountry;
   final String password;
+
   const VerifyRegisterOtpScreen({
     super.key,
     required this.email,
@@ -24,7 +25,8 @@ class VerifyRegisterOtpScreen extends StatefulWidget {
   });
 
   @override
-  State<VerifyRegisterOtpScreen> createState() => _VerifyRegisterOtpScreenState();
+  State<VerifyRegisterOtpScreen> createState() =>
+      _VerifyRegisterOtpScreenState();
 }
 
 class _VerifyRegisterOtpScreenState extends State<VerifyRegisterOtpScreen> {
@@ -32,6 +34,7 @@ class _VerifyRegisterOtpScreenState extends State<VerifyRegisterOtpScreen> {
   bool canResend = true;
   int resendTimer = 5;
   Timer? _countdownTimer;
+  bool isVerifying = false; // For Verify OTP button loading
 
   void _startCoolDown() {
     setState(() {
@@ -54,102 +57,92 @@ class _VerifyRegisterOtpScreenState extends State<VerifyRegisterOtpScreen> {
     });
   }
 
+  Future<void> _showErrorDialog(String message) async {
+    // Ensure dialog shows after current frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Error"),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // dismiss dialog
+                },
+                child: const Text("OK"),
+              ),
+            ],
+          );
+        },
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+
     return Scaffold(
       backgroundColor: kmainBackgroundcolor,
       body: BlocConsumer<OnboardingBloc, OnboardingState>(
-        listener: (context, state) async{
+        listener: (context, state) async {
           if (state is OnboardingOtpResendSuccessState) {
             customSnackBar('OTP resend requested', context);
           } else if (state is OnboardingSentOtpSuccessState) {
-            customSnackBar('OTP verified', context);
-             await MyApp.showLocalNotification(
-    "Welcome to Bitsure 🎉",
-    "You’re all set  enjoy easy and safe crypto management!",
-    {"type": "welcome"},
-  );
+            // OTP verified successfully
+            setState(() => isVerifying = false);
 
-            Navigator.push(
+            customSnackBar('OTP verified', context);
+            await MyApp.showLocalNotification(
+              "Welcome to Bitsure 🎉",
+              "You’re all set. Enjoy easy and safe crypto management!",
+              {"type": "welcome"},
+            );
+            final userInfo = await UserService().getUsersInfo(
+              Getuser(email: widget.email),
+            );
+
+            Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) {
-                  return Homepage(email: widget.email);
-                },
+                builder: (_) =>
+                    Homepage(email: widget.email, userInfo: userInfo),
               ),
             );
           } else if (state is OnboardingSentOtpFailureState) {
-            customDialog(context, state.message);
-          } else if (state is OnboardingSentOtploadingState) {
-            showDialog(
-              barrierDismissible: false,
-              context: context,
-              builder: (context) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      customContainer(
-                        250,
-                        250,
-                        BoxDecoration(borderRadius: BorderRadius.circular(20)),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Center(
-                              child: Column(
-                                children: [
-                                  customContainer(50, 50, 
-                                  BoxDecoration(
-                                    color: ksubcolor,
-                                    borderRadius: BorderRadius.circular(29)
-                                  ), CircularProgressIndicator()),
-                                  Text('Creating wallet\n please wait...',
-                                  style: TextStyle(
-                                    color: kwhitecolor,
-                                    fontSize: 25
-                                  ),),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
+            setState(() => isVerifying = false);
+            _showErrorDialog(state.message);
           }
         },
-
         builder: (context, state) {
           return SingleChildScrollView(
             child: Column(
               children: [
-                SizedBox(height: 110),
+                const SizedBox(height: 110),
                 Center(
                   child: Text(
                     "Verify OTP",
-                    style: TextStyle(color: kwhitecolor, fontSize: 30),
+                    style: TextStyle(
+                      color: kmainWhitecolor,
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                SizedBox(height: 20),
-                customContainer(
-                  250,
-                  size.width * 0.5,
-                  BoxDecoration(
-                    image: DecorationImage(image: AssetImage("asset/otp.png")),
-                  ),
-                  SizedBox(),
-                ),
+                const SizedBox(height: 10),
                 SizedBox(
-                  width: 400,
+                  width: 320,
                   child: Center(
-                    child: Text(
-                      "An OTP code has been sent to your email,\nPlease input them here to continue",
-                      style: TextStyle(color: kwhitecolor, fontSize: 18),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        "An OTP code has been sent to your email ${widget.email}. Please input it here to continue.",
+                        style: TextStyle(color: kmainWhitecolor, fontSize: 15),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                 ),
@@ -163,35 +156,78 @@ class _VerifyRegisterOtpScreenState extends State<VerifyRegisterOtpScreen> {
                     animationType: AnimationType.fade,
                     keyboardType: TextInputType.number,
                     autoFocus: true,
+                    textStyle: TextStyle(color: kwhitecolor),
                     pinTheme: PinTheme(
                       shape: PinCodeFieldShape.box,
                       borderRadius: BorderRadius.circular(10),
                       fieldHeight: 55,
                       fieldWidth: 52,
-                      activeFillColor: Colors.white,
-                      inactiveFillColor: Colors.grey.shade200,
-                      selectedFillColor: Colors.lightBlue.shade50,
-                      activeColor: Colors.blue,
-                      selectedColor: Colors.deepPurple,
+                      activeFillColor: ksubbackgroundcolor,
+                      inactiveFillColor: kwhitecolor,
+                      selectedFillColor: kwhitecolor,
+                      activeColor: kmainBackgroundcolor,
+                      selectedColor: kwhitecolor,
                       inactiveColor: Colors.grey,
                     ),
                     animationDuration: const Duration(milliseconds: 300),
                     enableActiveFill: true,
-                    onCompleted: (value) {
-                      context.read<OnboardingBloc>().add(
-                        OnVerifySentOtpEvent(email: widget.email, otp: value,password: widget.password),
-                      );
-                      print("${widget.email} and ${widget.password}");
-                    },
                   ),
                 ),
+                const SizedBox(height: 3),
+                customButtonContainer(
+                  40,
+                  size.width * 0.8,
+                  BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: kwhitecolor,
+                        blurStyle: BlurStyle.solid,
+                        blurRadius: 5,
+                        spreadRadius: 0.9,
+                      ),
+                    ],
+                    color: kmainBackgroundcolor,
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  Center(
+                    child: BlocBuilder<OnboardingBloc, OnboardingState>(
+                      builder: (context, state) {
+                        if (state is OnboardingSentOtploadingState) {
+                          return Text(
+                            state.message,
+                            style: const TextStyle(color: Colors.white),
+                            textAlign: TextAlign.center,
+                          );
+                        }
+                        return const Text(
+                          'Verify OTP',
+                          style: TextStyle(color: Colors.white),
+                        );
+                      },
+                    ),
+                  ),
+                  () {
+                    if (isVerifying) return;
+
+                    setState(() => isVerifying = true);
+
+                    context.read<OnboardingBloc>().add(
+                      OnVerifySentOtpEvent(
+                        email: widget.email,
+                        otp: otpController.text,
+                        password: widget.password,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 30),
                 Padding(
                   padding: const EdgeInsets.only(left: 25, top: 5),
                   child: Row(
                     children: [
                       Text(
-                        "Did'nt get a code?",
-                        style: TextStyle(color: kwhitecolor, fontSize: 16),
+                        "Didn't get a code?",
+                        style: TextStyle(color: kmainWhitecolor, fontSize: 16),
                       ),
                       InkWell(
                         onTap: canResend
@@ -211,8 +247,8 @@ class _VerifyRegisterOtpScreenState extends State<VerifyRegisterOtpScreen> {
                         child: Text(
                           canResend
                               ? " Resend"
-                              : " Resending otp \n in $resendTimer sec",
-                          style: TextStyle(color: kwhitecolor, fontSize: 18),
+                              : " Resending OTP in $resendTimer sec",
+                          style: TextStyle(color: kwhitecolor, fontSize: 15),
                         ),
                       ),
                     ],

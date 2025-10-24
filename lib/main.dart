@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:naipay/subscreens/resetransactionpin.dart';
+import 'package:app_links/app_links.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:naipay/screens/registerscreen.dart';
 import 'package:naipay/state%20management/fetchdata/bloc/fetchdata_bloc.dart';
@@ -19,13 +22,11 @@ import 'package:timezone/data/latest.dart' as tz;
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-// Firebase background message handler
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   print('Background message received: ${message.messageId}');
 }
 
-// Local notifications instance
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
@@ -35,13 +36,12 @@ void handleNotificationTap(Map<String, dynamic> data) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-   await SystemChrome.setPreferredOrientations([
+  await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
   await Firebase.initializeApp();
   tz.initializeTimeZones();
-
 
   await _initLocalNotifications();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -110,19 +110,16 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  late final AppLinks _appLinks;
+
   @override
   void initState() {
     super.initState();
-    _checkAndHandleConnectivity();
 
-    Connectivity().onConnectivityChanged.listen((results) {
-      if (!results.contains(ConnectivityResult.none) && mounted) {
-        if (Navigator.canPop(context)) {
-          Navigator.of(context).pop();
-        }
-      }
+    _appLinks = AppLinks(onAppLink: (uri, _) {
     });
 
+    _checkAndHandleConnectivity();
     _requestNotificationPermission();
     _getDeviceToken();
     _subscribeToTopic();
@@ -142,11 +139,17 @@ class _MyAppState extends State<MyApp> {
     });
 
     FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
-      if (message != null) {
-        handleNotificationTap(message.data);
+      if (message != null) handleNotificationTap(message.data);
+    });
+
+    Connectivity().onConnectivityChanged.listen((results) {
+      if (!results.contains(ConnectivityResult.none) && mounted) {
+        if (Navigator.canPop(context)) Navigator.of(context).pop();
       }
     });
   }
+
+  
 
   Future<void> _subscribeToTopic() async {
     try {
@@ -159,13 +162,11 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _requestNotificationPermission() async {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
-
     NotificationSettings settings = await messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
-
     print('User granted permission: ${settings.authorizationStatus}');
   }
 

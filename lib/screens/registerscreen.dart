@@ -26,9 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool obscureText = true;
   bool isBoxChecked = false;
 
-  // Prevents double-tap
-  bool isSubmitting = false;
-  bool hasNavigated = false; // Add this in _RegisterScreenState
+  bool isSubmitting = false; // Prevents double-tap
 
   @override
   Widget build(BuildContext context) {
@@ -36,32 +34,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     return BlocConsumer<OnboardingBloc, OnboardingState>(
       listener: (context, state) {
-        // Reset submit flag on any response
-        setState(() => isSubmitting = true);
-
         if (state is OnboardingSentOtpSuccessState) {
-          customSnackBar('Otp sent successfully', context);
-          hasNavigated = true; 
-            final secureStorage = const FlutterSecureStorage(); 
-                var storedEmail=    secureStorage.write(key: 'user_email', value: _emailController.text.trim());
-                print(" ✅ email stored on user devices is  $storedEmail");
+          customSnackBar('OTP sent successfully', context);
+
+          const secureStorage = FlutterSecureStorage();
+          secureStorage.write(
+              key: 'user_email', value: _emailController.text.trim());
+
+          setState(() => isSubmitting = false);
+
+          // Animated navigation to OTP screen
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (context) => VerifyRegisterOtpScreen(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  VerifyRegisterOtpScreen(
                 email: _emailController.text.trim(),
                 fullname: _firstNameController.text,
                 password: _passwordController.text,
                 selectedCountry: _countryController.text,
               ),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                const begin = Offset(1.0, 0.0); // slide from right
+                const end = Offset.zero;
+                const curve = Curves.easeInOut;
+
+                final tween =
+                    Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                return SlideTransition(position: animation.drive(tween), child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 400),
             ),
           );
-            setState(() => hasNavigated = false);
-        
         }
 
         if (state is OnboardingSentOtpFailureState) {
           customDialog(context, state.message);
+          setState(() => isSubmitting = false);
+        }
+
+        if (state is OnboardingSentOtploadingState) {
+          setState(() => isSubmitting = true);
         }
       },
       builder: (context, state) {
@@ -78,19 +92,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 32),
 
                   _buildTextField(
-                    _firstNameController,
-                    false,
-                    Icons.person,
-                    "Enter fullname",
-                  ),
+                      _firstNameController, false, Icons.person, "Enter fullname"),
                   const SizedBox(height: 15),
 
                   _buildTextField(
-                    _emailController,
-                    false,
-                    Icons.email,
-                    "Enter email address",
-                  ),
+                      _emailController, false, Icons.email, "Enter email address"),
                   const SizedBox(height: 15),
 
                   _buildCountryPicker(),
@@ -106,6 +112,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         obscureText = !obscureText;
                       });
                     },
+                    isPassword: true, // Auto-limit to 10 characters
                   ),
                   const SizedBox(height: 20),
 
@@ -150,16 +157,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               TextSpan(
                                 text: 'the terms ',
                                 style: TextStyle(
-                                  color: kwhitecolor,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                    color: kwhitecolor, fontWeight: FontWeight.bold),
                               ),
                               TextSpan(
                                 text: 'and ',
                                 style: TextStyle(
-                                  color: kmainWhitecolor,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                    color: kmainWhitecolor, fontWeight: FontWeight.bold),
                               ),
                               TextSpan(
                                 text: 'conditions',
@@ -191,8 +194,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     Center(
-                      child: state is OnboardingSentOtploadingState || isSubmitting
-                          ? CircularProgressIndicator(color: kmainBackgroundcolor)
+                      child: isSubmitting
+                          ? Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: CircularProgressIndicator(color: kmainWhitecolor),
+                            )
                           : Text(
                               'Create Account',
                               style: TextStyle(
@@ -202,16 +208,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                     ),
                     () async {
-                      if (!isSubmitting && isBoxChecked) {
-                        setState(() => isSubmitting = true);
+                      if (isSubmitting) return; // prevent double tap
+                      if (!isBoxChecked) {
+                        customSnackBar(
+                            "Please accept the terms & conditions", context);
+                        return;
+                      }
+
+                      setState(() => isSubmitting = true);
+                      try {
                         await _onNextPressed(context);
+                      } catch (e) {
+                        customSnackBar(
+                            "An error occurred, please try again", context);
+                        setState(() => isSubmitting = false);
                       }
                     },
                   ),
 
                   const SizedBox(height: 15),
 
-                  // Already have account?
+                  // Already have account? Animated navigation
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -221,9 +238,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       InkWell(
                         onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) {
-                            return LoginScreen();
-                          }));
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) =>
+                                  LoginScreen(),
+                              transitionsBuilder:
+                                  (context, animation, secondaryAnimation, child) {
+                                const begin = Offset(1.0, 0.0);
+                                const end = Offset.zero;
+                                const curve = Curves.easeInOut;
+
+                                final tween = Tween(begin: begin, end: end)
+                                    .chain(CurveTween(curve: curve));
+
+                                return SlideTransition(
+                                  position: animation.drive(tween),
+                                  child: child,
+                                );
+                              },
+                              transitionDuration: const Duration(milliseconds: 400),
+                            ),
+                          );
                         },
                         child: Text(
                           ' Sign In',
@@ -245,7 +281,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildTitle() => Padding(
-        padding: const EdgeInsets.only(left: 15, top: 8),
+        padding: const EdgeInsets.only(left: 8, top: 8),
         child: Row(
           children: [
             Text(
@@ -257,9 +293,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
   Widget _buildDescription() => Padding(
-        padding: const EdgeInsets.only(left: 15, right: 10),
+        padding: const EdgeInsets.only(right: 70),
         child: Text(
-          'Ensure you provide your legal name as it appears on your government issued credentials',
+          'Ensure you provide your credentials correctly',
           style: TextStyle(color: kmainWhitecolor, fontSize: 13),
         ),
       );
@@ -271,6 +307,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     String hint, {
     void Function(String)? onChanged,
     GestureTapCallback? ontap,
+    bool isPassword = false,
   }) =>
       Padding(
         padding: const EdgeInsets.all(8.0),
@@ -279,7 +316,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           MediaQuery.of(context).size.width * 0.9,
           BoxDecoration(
             boxShadow: [
-              BoxShadow(color: kwhitecolor, blurRadius: 0.9, spreadRadius: 2,blurStyle: BlurStyle.solid),
+              BoxShadow(
+                  color: kwhitecolor,
+                  blurRadius: 0.9,
+                  spreadRadius: 2,
+                  blurStyle: BlurStyle.solid),
             ],
             borderRadius: BorderRadius.circular(13),
             color: kmainBackgroundcolor,
@@ -287,14 +328,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 10, bottom: 5, top: 2),
             child: TextFormField(
-               style: TextStyle(color: Colors.white),
-              obscureText: obscureText,
               controller: controller,
+              obscureText: obscureText,
+              style: TextStyle(color: Colors.white),
+              onChanged: (value) {
+                if (isPassword && value.length > 10) {
+                  controller.text = value.substring(0, 10);
+                  controller.selection = TextSelection.fromPosition(
+                    TextPosition(offset: controller.text.length),
+                  );
+                }
+                if (onChanged != null) onChanged(value);
+              },
               decoration: InputDecoration(
                 suffixIcon: Padding(
                   padding: const EdgeInsets.all(15.0),
                   child: InkWell(
-                      onTap: ontap, child: Icon(icon, color: kmainBackgroundcolor)),
+                      onTap: ontap, child: Icon(icon, color: kmainWhitecolor)),
                 ),
                 hintText: hint,
                 hintStyle: TextStyle(
@@ -303,7 +353,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 border: InputBorder.none,
               ),
-              onChanged: onChanged,
             ),
           ),
         ),
@@ -316,7 +365,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           MediaQuery.of(context).size.width * 0.9,
           BoxDecoration(
             boxShadow: [
-              BoxShadow(color: kwhitecolor, blurRadius: 0.9, spreadRadius: 2,blurStyle: BlurStyle.solid),
+              BoxShadow(
+                  color: kwhitecolor,
+                  blurRadius: 0.9,
+                  spreadRadius: 2,
+                  blurStyle: BlurStyle.solid),
             ],
             borderRadius: BorderRadius.circular(13),
             color: kmainBackgroundcolor,
@@ -324,21 +377,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 10, bottom: 5),
             child: TextFormField(
-               style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.white),
               controller: _countryController,
               readOnly: true,
               onTap: () {
                 showCountryPicker(
-                  
                   context: context,
                   showPhoneCode: false,
                   countryListTheme: CountryListThemeData(
                     bottomSheetWidth: 350,
                     searchTextStyle: TextStyle(color: kmainWhitecolor),
-                    textStyle: TextStyle(
-                      color: kmainWhitecolor
-                      
-                    ),
+                    textStyle: TextStyle(color: kmainWhitecolor),
                     bottomSheetHeight: 500,
                     backgroundColor: kmainBackgroundcolor,
                     borderRadius: const BorderRadius.only(
@@ -355,18 +404,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 );
               },
               decoration: InputDecoration(
-                suffixIcon: Icon(
-                  Icons.arrow_drop_down,
-                  color: kwhitecolor,
-                  
-                ),
+                suffixIcon: Icon(Icons.arrow_drop_down, color: kwhitecolor),
                 hintText: 'Tap to select country',
                 border: InputBorder.none,
-                hintStyle: TextStyle(
-                  
-                  color: kmainWhitecolor,
-                  letterSpacing: 0.2,
-                ),
+                hintStyle: TextStyle(color: kmainWhitecolor, letterSpacing: 0.2),
               ),
             ),
           ),

@@ -5,23 +5,26 @@ sealed class OnboardingState {}
 
 final class OnboardingInitial extends OnboardingState {}
 
-class OnboardingSentOtploadingState extends OnboardingState {}
+class OnboardingSentOtploadingState extends OnboardingState {
+  final String message;
+  OnboardingSentOtploadingState( this.message);
+}
 
 class OnboardingSentOtpSuccessState extends OnboardingState {
-   final String? bitcoinAddress;
+  final String? bitcoinAddress;
   final String? lightningAddress;
   final String? tronAddress;
   final int? balanceSats;
 
   OnboardingSentOtpSuccessState({
-     this.bitcoinAddress,
-     this.lightningAddress,
-     this.tronAddress,
-     this.balanceSats
+    this.bitcoinAddress,
+    this.lightningAddress,
+    this.tronAddress,
+    this.balanceSats,
   });
 }
 
-class OnboardingOtpResendSuccessState extends OnboardingState {} 
+class OnboardingOtpResendSuccessState extends OnboardingState {}
 
 class OnboardingSentOtpFailureState extends OnboardingState {
   final String message;

@@ -106,11 +106,13 @@ class _LearnpageState extends State<Learnpage> {
                       ),
                       SizedBox(
                         width: 260,
-                        child: Text(
-                          'Holding Bitcoin is like you holding your breath under water, except you run out of oxygen and you get rich.',
-                          style: TextStyle(
-                            color: kwhitecolor,
-                            fontWeight: FontWeight.w600,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text("Holding Bitcoin is like holding your breath underwater  tense, risky, and if you time it right,it's extremely rewarding.”",
+                            style: TextStyle(
+                              color: kwhitecolor,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),

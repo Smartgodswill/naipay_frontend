@@ -7,6 +7,7 @@ import 'package:naipay/state%20management/fetchdata/bloc/fetchdata_bloc.dart';
 import 'package:naipay/state%20management/sendtransactionpin/bloc/sendtransactionpin_bloc.dart';
 import 'package:naipay/subscreens/homepage.dart';
 import 'package:naipay/theme/colors.dart';
+import 'package:naipay/transactionscreens/resetpinotpscreen.dart';
 import 'package:naipay/utils/utils.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 
@@ -216,7 +217,7 @@ class _SetTransactionPinViewState extends State<SetTransactionPinView> {
               );
             },
             controller: pinController,
-            email: widget.walletInfo['email'],
+            email: widget.userInfo['email'], userInfo: widget.userInfo, fromAddress:widget.fromAddress, toAddress:widget.toAddress, amount: widget.amount, previewData: widget.previewData, coin:widget.coin, walletInfo: widget.walletInfo,
           );
         },
       ),
@@ -228,11 +229,18 @@ class _PinInput extends StatelessWidget {
   final String email;
   final void Function(String) onPinCompleted;
   final TextEditingController controller;
+  final Map<String, dynamic> userInfo;
+  final String fromAddress;
+  final String toAddress;
+  final double amount;
+  final Map<String, dynamic> previewData;
+  final String coin;
+  final Map<String, dynamic> walletInfo;
 
   const _PinInput({
     required this.onPinCompleted,
     required this.controller,
-    required this.email,
+    required this.email, required this.userInfo, required this.fromAddress, required this.toAddress, required this.amount, required this.previewData, required this.coin, required this.walletInfo,
   });
 
   @override
@@ -292,38 +300,49 @@ class _PinInput extends StatelessWidget {
                 style: TextStyle(color: kmainWhitecolor),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.only(left: 2, top: 8),
-              child: GestureDetector(
-                onTap: () async {
-                  try {
-                    await UserService().resetTransactionPin(email);
+           Padding(
+  padding: const EdgeInsets.only(left: 2, top: 8),
+  child: GestureDetector(
+    onTap: () async {
+      try {
+        await UserService().resetTransactionPin(email);
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'A reset PIN email has been sent to your inbox.',
-                        ),
-                        behavior: SnackBarBehavior.floating,
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Failed to send reset link. Please try again.',
-                        ),
-                        behavior: SnackBarBehavior.floating,
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
-                  }
-                },
-
-                child: Text('Reset Pin', style: TextStyle(color: kwhitecolor)),
-              ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'A reset PIN email has been sent to your inbox.',
             ),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResetPinOtpScreen(email: email, userInfo:userInfo, fromAddress: fromAddress, toAddress: toAddress, amount: amount, previewData: previewData,coin: coin, walletInfo: walletInfo,),
+      ),
+    );
+
+          
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to send reset link. Please try again.',
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }, 
+    child: Text(
+      'Reset Pin',
+      style: TextStyle(color: kwhitecolor),
+    ),
+  ),
+)
+
           ],
         ),
       ],

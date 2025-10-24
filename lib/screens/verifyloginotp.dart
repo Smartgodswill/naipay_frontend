@@ -158,6 +158,7 @@ class _VerifyloginOtpScreenState extends State<VerifyloginOtpScreen> {
   Center(
     child: state is RestorewalleLoadingState
         ? Row(
+          mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
@@ -165,14 +166,7 @@ class _VerifyloginOtpScreenState extends State<VerifyloginOtpScreen> {
                 style:  TextStyle(color: kmainWhitecolor),
               ),
               const SizedBox(width: 8),
-             SizedBox(
-                height: 16,
-                width: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(kmainWhitecolor),
-                ),
-              ),
+            
             ],
           )
         :  Text(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:bloc/bloc.dart';
@@ -32,7 +33,7 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
     OnboardingSentOtpEvent event,
     Emitter<OnboardingState> emit,
   ) async {
-    emit(OnboardingSentOtploadingState());
+    emit(OnboardingSentOtploadingState(''));
     final passwordError = validatePassword(event.password);
     if (event.fullname.isEmpty ||
         event.emailAddress.isEmpty ||
@@ -46,8 +47,12 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
       emit(OnboardingSentOtpFailureState(passwordError));
       return;
     }
-     if (event.ischecked == false) {
-      emit(OnboardingSentOtpFailureState('you must accept the terms and conditions to continue'));
+    if (event.ischecked == false) {
+      emit(
+        OnboardingSentOtpFailureState(
+          'you must accept the terms and conditions to continue',
+        ),
+      );
       return;
     }
 
@@ -75,13 +80,30 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
     OnVerifySentOtpEvent event,
     Emitter<OnboardingState> emit,
   ) async {
-    emit(OnboardingSentOtploadingState());
     if (event.otp.isEmpty) {
       emit(OnboardingSentOtpFailureState('Otp fields cannot be empty'));
       return;
     }
+    final messages = [
+      "Verifying OTP...",
+      "Please wait...",
+      "Creating wallet...",
+      "Almost done...",
+    ];
+    int i = 0;
+    emit(OnboardingSentOtploadingState(messages[i++ % messages.length]));
+      Timer? timer;
+
     try {
-      final user = User(email: event.email.trim(), otp: event.otp.trim(),password: event.password.trim());
+      timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      emit(OnboardingSentOtploadingState(messages[i++ % messages.length]));
+    });
+
+      final user = User(
+        email: event.email.trim(),
+        otp: event.otp.trim(),
+        password: event.password.trim(),
+      );
       print("Verifying OTP for user: ${user.email}");
       print("User OTP: ${user.otp}");
 
@@ -89,8 +111,7 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
       print("OTP verified");
       final walletData = await WalletService().createBitcoinWallet(
         event.email.trim(),
-        Network.Testnet
-        
+        Network.Testnet,
       );
       print('Wallet data hhh: $walletData');
 
@@ -110,10 +131,12 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
 
       await UserService().createWalletAndSendToBackend(createWalletUser);
       print("Wallet sent to backend");
+      timer.cancel();
       emit(OnboardingSentOtpSuccessState());
     } catch (e, stackTrace) {
       print('Verify user error: $e');
       print('Verify user stack trace: $stackTrace');
+          timer?.cancel();
       emit(
         OnboardingSentOtpFailureState(
           e.toString().replaceFirst('Exception: ', ''),

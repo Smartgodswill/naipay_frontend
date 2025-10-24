@@ -122,7 +122,6 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
       }
     });
 
-    // Trigger a fresh fetch from server/blockchain after update to get latest transaction history
     context.read<FetchdataBloc>().add(FetchUserDataEvent(email: widget.email));
   }
 
@@ -1120,7 +1119,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                     textAlign: TextAlign.center,
                                                     style: TextStyle(
                                                       color: kmainWhitecolor,
-                                                      fontSize: 17,
+                                                      fontSize: 15,
                                                       fontWeight:
                                                           FontWeight.bold,
                                                     ),
@@ -1134,7 +1133,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
                                                           horizontal: 8.0,
                                                         ),
                                                     child: Text(
-                                                      "We're working on improvements and upgrades.\nPlease check back soon!",
+                                                      "We're working on improvements and upgrades.\nWe will get back soon!",
                                                       textAlign:
                                                           TextAlign.center,
                                                       style: TextStyle(

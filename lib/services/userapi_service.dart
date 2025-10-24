@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:naipay/model/walletmodel.dart';
 
 class UserService {
-  static const String baseurl = "http://10.98.220.60:2000";
+  static const String baseurl = "http://10.49.237.60:2000";
 
 
    Future<Map<String, dynamic>> sendTrc20Transaction({
@@ -343,19 +343,72 @@ Future<bool> verifyTransactionPin(String email, String pin) async {
 
 
 Future<void> resetTransactionPin(String email) async {
-  final url = Uri.parse('https://$baseurl/auth/reset-Transaction-Pin');
+  final url = Uri.parse('$baseurl/auth/reset-Transaction-Pin');
 
-  final response = await http.post(
-    url,
-    headers: {"Content-Type": "application/json"},
-    body: jsonEncode({"email": email}),
-  );
-  final data = jsonDecode(response.body);
-  if (response.statusCode == 200) {
-    print("${data['message']}");
-  } else {
-    print("${data['error'] ?? 'Something went wrong'}");
+  try {
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email}),
+    );
+
+    print("STATUS: ${response.statusCode}");
+    print("BODY: ${response.body}");
+
+  } catch (e) {
+    print("ERROR calling API: $e");
+  }
+}
+
+Future<bool> verifyResetTransactionPinOTP(String email, String otp) async {
+    final url = Uri.parse('$baseurl/auth/verifyReset-Transaction-Pin');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": email, "otp": otp}),
+      );
+
+      if (response.statusCode == 200) {
+        return true; // OTP verified
+      } else {
+        final body = jsonDecode(response.body);
+        throw Exception(body['error'] ?? 'Invalid OTP');
+      }
+    } catch (e) {
+      print("ERROR verifying OTP: $e");
+      rethrow;
+    }
+  }
+
+  Future<void> updateTransactionPin(String email, String newPin) async {
+  final url = Uri.parse('$baseurl/auth/updateReset-Transaction-Pin');
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email, "newPin": newPin}),
+    );
+
+    if (response.statusCode == 200) {
+      print("Transaction PIN updated successfully");
+      return;
+    }
+    try {
+      final body = jsonDecode(response.body);
+      throw Exception(body['error'] ?? 'Failed to update PIN');
+    } catch (e) {
+      throw Exception(
+          'Failed to update PIN. Server returned: ${response.statusCode}');
+    }
+  } catch (e) {
+    print("ERROR updating PIN: $e");
+    rethrow;
   }
 }
 
 }
+
+
